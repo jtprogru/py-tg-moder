@@ -1,0 +1,13 @@
+---
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python bot.py
+    volumes:
+      - ./src:/bot/
+    env_file:
+      - ./src/.env
