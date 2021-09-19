@@ -1,13 +1,7 @@
 ---
-version: '3.8'
-
+version: '3.7'
 services:
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: python bot.py
-    volumes:
-      - ./src:/bot/
+  bot:
+    image: ghcr.io/jtprogru/py-tg-moder:latest
     env_file:
       - ./src/.env

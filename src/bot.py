@@ -11,8 +11,10 @@ from telegram.ext import (
 )
 
 from core.config import TELEGRAM_BOT_TOKEN
-from core.handlers import track_chats, greet_chat_members
 from handlers.service_handlers import delete_voices, ping
+from handlers.user_handlers import greet_chat_members
+from handlers.admin_handlers import ban_user, mute_user
+
 
 # Enable logging
 logging.basicConfig(
@@ -28,11 +30,16 @@ if __name__ == '__main__':
     dispatcher = updater.dispatcher
 
     # Keep track of which chats the bot is in
-    dispatcher.add_handler(ChatMemberHandler(track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+    # dispatcher.add_handler(ChatMemberHandler(track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
     dispatcher.add_handler(CommandHandler("ping", ping))
+    # Ban user manual
+    dispatcher.add_handler(CommandHandler("ban", ban_user))
+    # Mute user manual
+    dispatcher.add_handler(CommandHandler("mute", mute_user))
 
     # Handle members joining/leaving chats.
     dispatcher.add_handler(ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER))
+    # Handle join/leaving message
     dispatcher.add_handler(
         MessageHandler(
             Filters.voice | Filters.video | Filters.location | Filters.video_note |
