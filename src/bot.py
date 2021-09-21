@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 if __name__ == '__main__':
-    updater = Updater(TELEGRAM_BOT_TOKEN)
+    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
