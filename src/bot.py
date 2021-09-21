@@ -2,29 +2,20 @@
 """Global BOT command."""
 import logging
 from telegram import Update
-from telegram.ext import (
-    Filters,
-    Updater,
-    CommandHandler,
-    ChatMemberHandler,
-    MessageHandler
-)
+from telegram.ext import ChatMemberHandler, CommandHandler, Filters, MessageHandler, Updater
 
 from core.config import TELEGRAM_BOT_TOKEN
+from handlers.admin_handlers import ban_user, mute_user
 from handlers.service_handlers import delete_voices, ping
 from handlers.user_handlers import greet_chat_members
-from handlers.admin_handlers import ban_user, mute_user
-
 
 # Enable logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG
-)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -42,9 +33,13 @@ if __name__ == '__main__':
     # Handle join/leaving message
     dispatcher.add_handler(
         MessageHandler(
-            Filters.voice | Filters.video | Filters.location | Filters.video_note |
-            Filters.status_update.left_chat_member | Filters.status_update.new_chat_members,
-            delete_voices
+            Filters.voice
+            | Filters.video
+            | Filters.location
+            | Filters.video_note
+            | Filters.status_update.left_chat_member
+            | Filters.status_update.new_chat_members,
+            delete_voices,
         )
     )
 

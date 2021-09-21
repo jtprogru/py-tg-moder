@@ -17,7 +17,7 @@ def ban_user(update: Update, context: CallbackContext) -> None:
 
     if update.message.from_user in admins_list:
         update.effective_chat.ban_member(user_id=update.chat_member.new_chat_member.user.id)
-        logger.info(f'[INFO] User with ID {update.chat_member.new_chat_member.user.id} was banned')
+        logger.info(f"[INFO] User with ID {update.chat_member.new_chat_member.user.id} was banned")
 
 
 def mute_user(update: Update, context: CallbackContext) -> None:
@@ -42,6 +42,6 @@ def mute_user(update: Update, context: CallbackContext) -> None:
                 can_change_info=False,
                 can_invite_users=False,
                 can_pin_messages=False,
-            )
+            ),
         )
-        logger.info(f'[INFO] User with ID {update.chat_member.new_chat_member.user.id} was muted')
+        logger.info(f"[INFO] User with ID {update.chat_member.new_chat_member.user.id} was muted")

@@ -2,6 +2,6 @@
 version: '3.7'
 services:
   bot:
-    image: ghcr.io/jtprogru/py-tg-moder:latest
+    image: ghcr.io/jtprogru/py-tg-moder:main
     env_file:
       - ./src/.env

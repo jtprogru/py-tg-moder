@@ -1,0 +1,67 @@
+[project]
+name = "py-tg-moder"
+version = "0.1.3"
+description = "Simple bot for moderate my chat"
+authors = ["Michael Savin <jtprogru@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+python = "^3.8"
+homepage = "https://github.com/jtprogru/py-tg-moder"
+repository = "https://github.com/jtprogru/py-tg-moder"
+documentation = "https://github.com/jtprogru/py-tg-moder/wiki"
+
+[dependencies]
+python = "^3.9"
+python-telegram-bot = "^13.7"
+requests = "^2.26.0"
+ruamel.yaml = "^0.17.16"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.4"
+pytest-cov = "^2.10.1"
+pytest-env = "^0.6.2"
+black = "^21.7b0"
+flake8 = "^3.9.2"
+
+
+[build-system]
+requires = [
+    "setuptools >= 35.0.2",
+    "setuptools_scm >= 2.0.0, <3"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+python_files = "test*.py"
+norecursedirs = [
+  ".git", ".tox", "venv*", "requirements*"
+]
+
+addopts = '''
+  --verbose
+  --strict-markers
+  --color=yes
+  --tb=short
+'''
+testpaths = [
+    "tests",
+]
+
+env = [
+  "DEBUG=True",
+  "TELEGRAM_BOT_TOKEN='12345:xxxx'",
+]
+
+[tool.black]
+line-length = 160
+target-version = ['py37', 'py38', 'py39']
+black_skip_string_normalization = true
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  | migrations
+  | venv
+  | .venv
+  | tests
+)/
+'''
