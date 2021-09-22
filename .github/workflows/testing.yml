@@ -19,6 +19,10 @@ jobs:
         pip install -r requirements.txt
         pip install -r dev-requirements.txt
 
+    - name: Generate simple env
+      run: |
+        echo "export TELEGRAM_BOT_TOKEN='1928321165:AAHExFP5LDEWlxtFU9teGiQwzawxsM2oMHw' \n export VERSION=0.1.2" > src/.env
+
     - name: Run black
       run: |
         make black
