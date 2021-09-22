@@ -19,7 +19,7 @@ TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", None)
 CHAT_RULES_URL: str = "https://jtprog.ru/chat-rules/"
 
 DEBUG: bool = bool(os.getenv("DEBUG", True))
-
+SENTRY_DSN: str = os.getenv("SENTRY_DSN")
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
 
