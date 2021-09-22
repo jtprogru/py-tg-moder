@@ -12,6 +12,7 @@
 ```ini
 export TELEGRAM_BOT_TOKEN='1234567890:qwertyuiopHGVBNVJHVJVMNBVMNBVposdfghi'
 export VERSION=0.1.2
+export SENTRY_DSN="https://xxxxjkhkjahsdkjashd@o444444.ingest.sentry.io/1234567"
 ```
 
 Развернут на домашнем Docker Swarm через [Portainer](https://portainer.io). Запустить с помощью `docker compose up -d`: 
