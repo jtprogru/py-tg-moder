@@ -2,7 +2,7 @@
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Docker](https://github.com/jtprogru/py-tg-moder/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/jtprogru/py-tg-moder/actions/workflows/docker-publish.yml)
-[![Pylint](https://github.com/jtprogru/py-tg-moder/actions/workflows/pylint.yml/badge.svg)](https://github.com/jtprogru/py-tg-moder/actions/workflows/pylint.yml)
+[![Testing](https://github.com/jtprogru/py-tg-moder/actions/workflows/testing.yml/badge.svg)](https://github.com/jtprogru/py-tg-moder/actions/workflows/testing.yml)
 
 Бот-модератор для чата [@jtprgoru_chat](https://t.me/jtprgoru_chat)
 
