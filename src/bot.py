@@ -6,7 +6,7 @@ from telegram.ext import ChatMemberHandler, CommandHandler, Filters, MessageHand
 
 from core.config import TELEGRAM_BOT_TOKEN
 from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
-from handlers.service_handlers import delete_bad_message, ping, errors_logging
+from handlers.service_handlers import delete_bad_message, errors_logging, ping
 from handlers.user_handlers import greet_chat_members
 
 # Enable logging

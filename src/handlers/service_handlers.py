@@ -26,4 +26,3 @@ def errors_logging(update: Update, context: CallbackContext, error: TelegramErro
     if not (error.message == "Message is not modified"):
         logger.warning('Update "%s" caused error "%s"' % (update, error))
     logger.error(f"[ERROR] {context.error.with_traceback}")
-
