@@ -37,3 +37,6 @@ black:
 
 flake8:
 	source venv/bin/activate && python -m flake8 src/
+
+test:
+	source venv/bin/activate && python -m pytest
