@@ -3,3 +3,4 @@ pytest-cov
 pytest-env
 black
 flake8
+isort
