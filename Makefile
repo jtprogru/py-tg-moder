@@ -1,6 +1,6 @@
 # Makefile
 
-SHELL := /bin/zsh
+SHELL := /bin/bash
 
 include src/.env
 
