@@ -18,12 +18,15 @@ jobs:
         python -m pip install --upgrade pip
         python -m venv venv
         source venv/bin/activate
-        pip install -r requirements.txt
-        pip install -r dev-requirements.txt
+        make install-deps-dev
 
     - name: Generate simple env
       run: |
-        echo "export TELEGRAM_BOT_TOKEN='1928321165:AAHExFP5LDEWlxtFU9teGiQwzawxsM2oMHw' \n export VERSION=0.1.2" > src/.env
+        cat > src/.env << EOF
+          export SENTRY_DSN="https://xxxhsdshd@o444444.ingest.sentry.io/1234567"
+          export TELEGRAM_BOT_TOKEN='1234567890:QWERTYUHGVFDRTGaaa'
+          export VERSION=0.1.2
+        EOF
 
     - name: Run black
       run: |
