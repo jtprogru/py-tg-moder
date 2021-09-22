@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """Global BOT command."""
 import logging
+import sentry_sdk
 from telegram import Update
 from telegram.ext import ChatMemberHandler, CommandHandler, Filters, MessageHandler, Updater
 
-from core.config import TELEGRAM_BOT_TOKEN
+from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
 from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
 from handlers.service_handlers import delete_bad_message, errors_logging, ping
 from handlers.user_handlers import greet_chat_members
@@ -16,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":
+
+    sentry_sdk.init(SENTRY_DSN, traces_sample_rate=1.0)
+
     updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
