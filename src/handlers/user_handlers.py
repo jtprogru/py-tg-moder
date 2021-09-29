@@ -33,7 +33,3 @@ def greet_chat_members(update: Update, context: CallbackContext) -> None:
             update.effective_chat.ban_member(user_id=update.chat_member.new_chat_member.user.id)
     elif was_member and not is_member:
         logger.debug(f"[INFO] User with ID {update.chat_member.new_chat_member.user.id} was leave")
-        update.effective_chat.send_message(
-            f"Хомячок {member_name} нас покинул...\n\nНу и хер бы с ним",
-            parse_mode=ParseMode.HTML,
-        )
