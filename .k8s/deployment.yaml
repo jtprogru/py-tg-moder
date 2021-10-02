@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: py-tg-moder
-        image: ghcr.io/jtprogru/py-tg-moder:v0.2.1
+        image: ghcr.io/jtprogru/py-tg-moder:latest
         imagePullPolicy: Always
         env:
           - name: TOKEN
