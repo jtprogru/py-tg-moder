@@ -22,5 +22,6 @@ spec:
               secretKeyRef:
                 name: py-tg-moder-secret
                 key: tg_token
-        restartPolicy: Always
+      imagePullSecrets:
+      - name: ghcrio-auth-secret
 
