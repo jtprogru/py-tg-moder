@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: py-tg-moder
+spec:
+  selector:
+    matchLabels:
+      app: py-tg-moder
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: py-tg-moder
+    spec:
+      containers:
+      - name: py-tg-moder
+        image: ghcr.io/jtprogru/py-tg-moder:v0.2.1
+        imagePullPolicy: Always
+        env:
+          - name: TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: py-tg-moder-secret
+                key: tg_token
+      imagePullSecrets:
+      - name: ghcrio-auth-secret
+
