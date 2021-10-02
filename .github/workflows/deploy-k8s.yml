@@ -30,6 +30,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
+      - name: Clean docker artifacts
+        run: |
+          docker system prune -af
+
       - name: Deploy new version
         run: |
           echo "Apply new version with tag 'latest'"
