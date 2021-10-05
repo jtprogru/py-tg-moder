@@ -2,12 +2,12 @@
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Docker](https://github.com/jtprogru/py-tg-moder/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/jtprogru/py-tg-moder/actions/workflows/docker-publish.yml)
-[![Testing](https://github.com/jtprogru/py-tg-moder/actions/workflows/testing.yml/badge.svg)](https://github.com/jtprogru/py-tg-moder/actions/workflows/testing.yml)
+[![Testing](https://github.com/jtprogru/py-tg-moder/actions/workflows/testing.yml/badge.svg?branch=develop)](https://github.com/jtprogru/py-tg-moder/actions/workflows/testing.yml)
 [![Deploy](https://github.com/jtprogru/py-tg-moder/actions/workflows/deploy-k8s.yml/badge.svg)](https://github.com/jtprogru/py-tg-moder/actions/workflows/deploy-k8s.yml)
 [![GitHub stars](https://img.shields.io/github/stars/jtprogru/py-tg-moder.svg)](https://github.com/jtprogru/py-tg-moder/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues-raw/jtprogru/py-tg-moder)](https://github.com/jtprogru/py-tg-moder/issues)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/jtprogru/py-tg-moder)](https://github.com/jtprogru/py-tg-moder/releases/latest)
-[![GitHub](https://img.shields.io/github/license/jtprgoru/py-tg-moder)](https://github.com/jtprogru/py-tg-moder/)
+[![GitHub](https://img.shields.io/github/license/jtprogru/py-tg-moder)](https://github.com/jtprogru/py-tg-moder/)
 [![Wiki](https://img.shields.io/badge/Wiki-READ-success)](https://github.com/jtprogru/py-tg-moder/wiki)
 
 Бот-модератор для чата [@jtprgoru_chat](https://t.me/jtprgoru_chat)
