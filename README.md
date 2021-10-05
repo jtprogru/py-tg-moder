@@ -7,7 +7,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/jtprogru/py-tg-moder.svg)](https://github.com/jtprogru/py-tg-moder/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues-raw/jtprogru/py-tg-moder)](https://github.com/jtprogru/py-tg-moder/issues)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/jtprogru/py-tg-moder)](https://github.com/jtprogru/py-tg-moder/releases/latest)
-[![GitHub](https://img.shields.io/github/license/jtprgoru/py-tg-moder)](https://github.com/jtprogru/py-tg-moder/)
+[![GitHub](https://img.shields.io/github/license/jtprogru/py-tg-moder)](https://github.com/jtprogru/py-tg-moder/)
 [![Wiki](https://img.shields.io/badge/Wiki-READ-success)](https://github.com/jtprogru/py-tg-moder/wiki)
 
 Бот-модератор для чата [@jtprgoru_chat](https://t.me/jtprgoru_chat)
