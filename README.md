@@ -43,7 +43,7 @@ services:
 
 ## Feedback
 
-Если случилось так, что ты начал использовать и у тебя есть фидбэк, пожалуйста создай [issues](https://github.com/jtprogru/py-tg-moder/issues) или обратись в Telegram-чат [jtprogru_chat)](https://t.me/jtprogru_chat).
+Если случилось так, что ты начал использовать и у тебя есть фидбэк, пожалуйста создай [issues](https://github.com/jtprogru/py-tg-moder/issues) или обратись в Telegram-чат [@jtprogru_chat](https://t.me/jtprogru_chat).
 
 ## Authors
 
