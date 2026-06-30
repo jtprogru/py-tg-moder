@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 async def delete_bad_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Delete all voice, video_note, location, left_chat_member, new_chat_members messages"""
+    """Delete service messages (members joining/leaving). Media is handled by media_moderation."""
 
     logger.debug(f"[DEBUG] Message from {update.message.from_user} with ID {update.message.from_user.id} was deleted")
     await update.message.delete()

@@ -13,6 +13,7 @@ from core.storage import get_storage
 from handlers.admin_handlers import ban_user, kick_user, mute_user, unban_user, unmute_user
 from handlers.flood_control import flood_control
 from handlers.info_handlers import help_command, start
+from handlers.media_moderation import build_media_filter, moderate_media
 from handlers.message_moderation import moderate_message
 from handlers.service_handlers import delete_bad_message, errors_logging, ping
 from handlers.user_handlers import greet_chat_members
@@ -67,17 +68,15 @@ def main() -> None:
 
     # Welcome message
     application.add_handler(ChatMemberHandler(restricted_to_allowed_chats(greet_chat_members), ChatMemberHandler.CHAT_MEMBER))
-    # Delete voice message
-    application.add_handler(MessageHandler(filters.VOICE, restricted_to_allowed_chats(delete_bad_message)))
-    # Delete video message
-    application.add_handler(MessageHandler(filters.VIDEO, restricted_to_allowed_chats(delete_bad_message)))
-    # Delete locations
-    application.add_handler(MessageHandler(filters.LOCATION, restricted_to_allowed_chats(delete_bad_message)))
-    # Delete video note
-    application.add_handler(MessageHandler(filters.VIDEO_NOTE, restricted_to_allowed_chats(delete_bad_message)))
-    # Delete left chat member
+
+    # Delete configured media types from non-admins (notifies the author)
+    media_filter = build_media_filter()
+    if media_filter is not None:
+        application.add_handler(MessageHandler(media_filter, restricted_to_allowed_chats(moderate_media)))
+
+    # Delete left chat member service message
     application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, restricted_to_allowed_chats(delete_bad_message)))
-    # Delete new chat member
+    # Delete new chat member service message
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, restricted_to_allowed_chats(delete_bad_message)))
 
     # Flood control runs in its own group so it counts every message regardless

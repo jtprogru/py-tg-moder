@@ -28,6 +28,16 @@ moderation:
     limit: 7
     window_seconds: 10
     mute_seconds: 60
+  # Delete disallowed media types from non-admins; optionally notify the author
+  # with a notice that self-deletes after notify_ttl_seconds.
+  media:
+    enabled: true
+    notify: true
+    notify_ttl_seconds: 15
+    block_voice: true
+    block_video: true
+    block_video_note: true
+    block_location: true
 
 storage:
   # SQLite database file for moderation state. Overridden by the DB_PATH env var.

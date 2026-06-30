@@ -63,6 +63,16 @@ FLOOD_LIMIT: int = int(_flood.get("limit", 7))
 FLOOD_WINDOW: int = int(_flood.get("window_seconds", 10))
 FLOOD_MUTE_SECONDS: int = int(_flood.get("mute_seconds", 60))
 
+# Managed media deletion: which media types to delete from non-admins.
+_media: dict = cfg.get("moderation", {}).get("media", {}) or {}
+MEDIA_ENABLED: bool = bool(_media.get("enabled", True))
+MEDIA_NOTIFY: bool = bool(_media.get("notify", True))
+MEDIA_NOTIFY_TTL: int = int(_media.get("notify_ttl_seconds", 15))
+MEDIA_BLOCK_VOICE: bool = bool(_media.get("block_voice", True))
+MEDIA_BLOCK_VIDEO: bool = bool(_media.get("block_video", True))
+MEDIA_BLOCK_VIDEO_NOTE: bool = bool(_media.get("block_video_note", True))
+MEDIA_BLOCK_LOCATION: bool = bool(_media.get("block_location", True))
+
 # Path to the SQLite database that holds moderation state (warns, mutes, stats).
 # Env DB_PATH wins over config.yaml so deployments can point it at a mounted
 # volume without touching the image.
