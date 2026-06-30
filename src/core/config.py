@@ -8,6 +8,11 @@ from ruamel.yaml import YAML
 cfg = dict()
 yaml = YAML()
 
+# config.yaml lives next to the package root (src/config.yaml), one level up
+# from this module (src/core/). Resolving it relative to __file__ keeps loading
+# independent of the current working directory (local runs, Docker, pytest).
+_DEFAULT_CONFIG = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
+
 
 def _parse_bool(value: Optional[str], default: bool = False) -> bool:
     if value is None:
@@ -15,7 +20,7 @@ def _parse_bool(value: Optional[str], default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def __load_cfg(configfile="config.yaml"):
+def __load_cfg(configfile=_DEFAULT_CONFIG):
     global cfg
     with open(configfile, "r") as fr:
         cfg = yaml.load(fr.read())
