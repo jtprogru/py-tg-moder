@@ -38,12 +38,13 @@ UNMUTE_PERMISSIONS = ChatPermissions(
 )
 
 
-async def _resolve_target(update: Update) -> Optional[User]:
+async def _resolve_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[User]:
     """Validate an admin command and return the user it targets.
 
     The command must be sent by a chat administrator as a reply to the target
     user's message. Returns the target ``User`` or ``None`` if the command is
-    not applicable (not a reply, or the issuer is not an admin).
+    not applicable (not a reply, the issuer is not an admin, or the target is
+    protected — an administrator, the chat owner, or the bot itself).
     """
     message = update.effective_message
     chat = update.effective_chat
@@ -57,15 +58,30 @@ async def _resolve_target(update: Update) -> Optional[User]:
         return None
 
     admins = await chat.get_administrators()
-    if user.id not in {admin.user.id for admin in admins}:
+    admin_ids = {admin.user.id for admin in admins}
+    if user.id not in admin_ids:
         return None
 
-    return message.reply_to_message.from_user
+    target = message.reply_to_message.from_user
+    if target is None:
+        return None
+
+    # Protect privileged targets: never act on admins/owner or the bot itself,
+    # so an accidental reply+command gives a friendly notice instead of a
+    # silent Telegram rejection surfacing as a Sentry error.
+    if target.id == context.bot.id:
+        await message.reply_text("Меня самого модерировать не нужно 🙂")
+        return None
+    if target.id in admin_ids:
+        await message.reply_text("Нельзя применять модерацию к администратору или владельцу чата.")
+        return None
+
+    return target
 
 
 async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Ban the author of the replied-to message (admins only)."""
-    target = await _resolve_target(update)
+    target = await _resolve_target(update, context)
     if target is None:
         return
 
@@ -75,7 +91,7 @@ async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Unban the author of the replied-to message (admins only)."""
-    target = await _resolve_target(update)
+    target = await _resolve_target(update, context)
     if target is None:
         return
 
@@ -85,7 +101,7 @@ async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Mute the author of the replied-to message (admins only)."""
-    target = await _resolve_target(update)
+    target = await _resolve_target(update, context)
     if target is None:
         return
 
@@ -95,7 +111,7 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Unmute the author of the replied-to message (admins only)."""
-    target = await _resolve_target(update)
+    target = await _resolve_target(update, context)
     if target is None:
         return
 
