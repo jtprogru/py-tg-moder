@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from telegram import ChatPermissions, Update, User
+from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
 from core.config import DELETE_ON_BAN, logger
@@ -79,21 +80,53 @@ async def _resolve_target(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return target
 
 
+async def _apply_action(
+    update: Update,
+    action: Callable[[], Awaitable[object]],
+    success_text: str,
+) -> bool:
+    """Run a moderation ``action``, report the result, and clean up.
+
+    On success a short confirmation is posted in the chat and the command
+    message is removed so commands don't pile up. If the bot lacks the required
+    admin rights, the issuer gets a clear notice instead of a silent Telegram
+    rejection surfacing only as a Sentry error. Returns ``True`` on success.
+    """
+    message = update.effective_message
+    try:
+        await action()
+    except (BadRequest, Forbidden) as exc:
+        logger.warning("[WARN] Moderation action failed: %s", exc)
+        await message.reply_text("Не удалось выполнить команду: у меня нет нужных прав администратора в этом чате.")
+        return False
+
+    await message.reply_text(success_text)
+    try:
+        await message.delete()
+    except (BadRequest, Forbidden) as exc:
+        logger.debug("[DEBUG] Could not delete command message: %s", exc)
+    return True
+
+
 async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Ban the author of the replied-to message (admins only)."""
     target = await _resolve_target(update, context)
     if target is None:
         return
 
-    await update.effective_chat.ban_member(user_id=target.id)
+    chat = update.effective_chat
+    spam = update.effective_message.reply_to_message
+    if not await _apply_action(update, lambda: chat.ban_member(user_id=target.id), "🔨 Пользователь забанен."):
+        return
     logger.info(f"[INFO] User with ID {target.id} was banned")
 
     # Remove the offending message the ban was issued in reply to.
-    if DELETE_ON_BAN:
-        spam = update.effective_message.reply_to_message
-        if spam is not None:
+    if DELETE_ON_BAN and spam is not None:
+        try:
             await spam.delete()
             logger.info(f"[INFO] Spam message {spam.message_id} from {target.id} was deleted")
+        except (BadRequest, Forbidden) as exc:
+            logger.debug("[DEBUG] Could not delete spam message: %s", exc)
 
 
 async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -102,7 +135,9 @@ async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if target is None:
         return
 
-    await update.effective_chat.unban_member(user_id=target.id)
+    chat = update.effective_chat
+    if not await _apply_action(update, lambda: chat.unban_member(user_id=target.id), "✅ Пользователь разбанен."):
+        return
     logger.info(f"[INFO] User with ID {target.id} was unbanned")
 
 
@@ -112,7 +147,9 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if target is None:
         return
 
-    await update.effective_chat.restrict_member(user_id=target.id, permissions=MUTE_PERMISSIONS)
+    chat = update.effective_chat
+    if not await _apply_action(update, lambda: chat.restrict_member(user_id=target.id, permissions=MUTE_PERMISSIONS), "🔇 Пользователь замьючен."):
+        return
     logger.info(f"[INFO] User with ID {target.id} was muted")
 
 
@@ -122,5 +159,7 @@ async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if target is None:
         return
 
-    await update.effective_chat.restrict_member(user_id=target.id, permissions=UNMUTE_PERMISSIONS)
+    chat = update.effective_chat
+    if not await _apply_action(update, lambda: chat.restrict_member(user_id=target.id, permissions=UNMUTE_PERMISSIONS), "🔊 Пользователь размьючен."):
+        return
     logger.info(f"[INFO] User with ID {target.id} was unmuted")

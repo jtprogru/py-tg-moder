@@ -15,13 +15,18 @@ class FakeAdmin:
 
 
 class FakeMessage:
-    def __init__(self, reply_to=None):
+    def __init__(self, reply_to=None, message_id=1):
         self.reply_to_message = reply_to
         self.from_user = None
+        self.message_id = message_id
         self.replies = []
+        self.deleted = False
 
     async def reply_text(self, text, **kwargs):
         self.replies.append(text)
+
+    async def delete(self):
+        self.deleted = True
 
 
 class FakeChat:
