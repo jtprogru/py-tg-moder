@@ -1,6 +1,8 @@
 ---
-groups:
-  main_group: '@jtprogru_chat'
+# Chats (numeric id or @username) where the bot is allowed to operate.
+# Anywhere else the bot stays silent and leaves the chat.
+allowed_chats:
+  - '@jtprogru_chat'
 
 moderation:
   # Delete the replied-to message when banning by reply.

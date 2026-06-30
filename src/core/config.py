@@ -31,8 +31,11 @@ __load_cfg()
 TELEGRAM_BOT_TOKEN: Optional[str] = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_RULES_URL: str = "https://jtprog.ru/chat-rules/"
 
+# Chats (numeric id or @username) the bot is allowed to operate in.
+ALLOWED_CHATS: list = list(cfg.get("allowed_chats", []) or [])
+
 # Human-readable handle of the chat this bot serves, shown in /start and /help.
-MAIN_GROUP: str = cfg.get("groups", {}).get("main_group", "")
+MAIN_GROUP: str = next((str(c) for c in ALLOWED_CHATS if str(c).startswith("@")), "")
 
 # Moderation behaviour toggles.
 DELETE_ON_BAN: bool = bool(cfg.get("moderation", {}).get("delete_on_ban", True))
