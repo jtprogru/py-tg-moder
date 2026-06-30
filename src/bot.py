@@ -12,6 +12,7 @@ from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
 from core.storage import get_storage
 from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
 from handlers.info_handlers import help_command, start
+from handlers.message_moderation import moderate_message
 from handlers.service_handlers import delete_bad_message, errors_logging, ping
 from handlers.user_handlers import greet_chat_members
 from handlers.warn_handlers import unwarn_user, warn_user, warns_list
@@ -52,6 +53,14 @@ def main() -> None:
     application.add_handler(CommandHandler("warns", restricted_to_allowed_chats(warns_list)))
     # Remove a user's last warn
     application.add_handler(CommandHandler("unwarn", restricted_to_allowed_chats(unwarn_user)))
+
+    # Filter links/forwards/mentions from newcomers (also re-checks edits)
+    application.add_handler(
+        MessageHandler(
+            (filters.TEXT | filters.CAPTION | filters.FORWARDED) & ~filters.COMMAND,
+            restricted_to_allowed_chats(moderate_message),
+        )
+    )
 
     # Welcome message
     application.add_handler(ChatMemberHandler(restricted_to_allowed_chats(greet_chat_members), ChatMemberHandler.CHAT_MEMBER))

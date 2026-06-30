@@ -45,6 +45,17 @@ WARN_LIMIT: int = int(cfg.get("moderation", {}).get("warn_limit", 3))
 _warn_action: str = str(cfg.get("moderation", {}).get("warn_action", "mute")).lower()
 WARN_ACTION: str = _warn_action if _warn_action in {"mute", "ban"} else "mute"
 
+# Content filter for messages from newcomers (links/forwards/mentions/invites).
+_newcomer: dict = cfg.get("moderation", {}).get("newcomer_filter", {}) or {}
+NEWCOMER_FILTER_ENABLED: bool = bool(_newcomer.get("enabled", True))
+NEWCOMER_MAX_MESSAGES: int = int(_newcomer.get("max_messages", 5))
+NEWCOMER_MAX_AGE: int = int(_newcomer.get("max_age_seconds", 86400))
+_newcomer_action: str = str(_newcomer.get("action", "delete")).lower()
+NEWCOMER_ACTION: str = _newcomer_action if _newcomer_action in {"delete", "mute", "warn"} else "delete"
+NEWCOMER_BLOCK_LINKS: bool = bool(_newcomer.get("block_links", True))
+NEWCOMER_BLOCK_FORWARDS: bool = bool(_newcomer.get("block_forwards", True))
+NEWCOMER_BLOCK_MENTIONS: bool = bool(_newcomer.get("block_mentions", True))
+
 # Path to the SQLite database that holds moderation state (warns, mutes, stats).
 # Env DB_PATH wins over config.yaml so deployments can point it at a mounted
 # volume without touching the image.
