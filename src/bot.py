@@ -9,6 +9,7 @@ from telegram.ext import Application, ChatMemberHandler, CommandHandler, Message
 
 from core.allowlist import resolve_allowlist, restricted_to_allowed_chats
 from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
+from core.storage import get_storage
 from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
 from handlers.info_handlers import help_command, start
 from handlers.service_handlers import delete_bad_message, errors_logging, ping
@@ -20,6 +21,10 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     sentry_sdk.init(SENTRY_DSN, traces_sample_rate=1.0)
+
+    # Open the database and create the schema before any update is handled.
+    storage = get_storage()
+    logger.info("[INFO] Storage ready at %s", storage.path)
 
     # Resolve the configured allowlist (@usernames -> ids) once the bot is ready.
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(resolve_allowlist).build()
