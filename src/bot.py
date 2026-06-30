@@ -14,6 +14,7 @@ from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
 from handlers.info_handlers import help_command, start
 from handlers.service_handlers import delete_bad_message, errors_logging, ping
 from handlers.user_handlers import greet_chat_members
+from handlers.warn_handlers import unwarn_user, warn_user, warns_list
 
 # Logging is configured once in core.config (imported above).
 logger = logging.getLogger(__name__)
@@ -45,6 +46,12 @@ def main() -> None:
     application.add_handler(CommandHandler("mute", restricted_to_allowed_chats(mute_user)))
     # Unmute user manual
     application.add_handler(CommandHandler("unmute", restricted_to_allowed_chats(unmute_user)))
+    # Warn user (auto-punish at the limit)
+    application.add_handler(CommandHandler("warn", restricted_to_allowed_chats(warn_user)))
+    # Show a user's warn history
+    application.add_handler(CommandHandler("warns", restricted_to_allowed_chats(warns_list)))
+    # Remove a user's last warn
+    application.add_handler(CommandHandler("unwarn", restricted_to_allowed_chats(unwarn_user)))
 
     # Welcome message
     application.add_handler(ChatMemberHandler(restricted_to_allowed_chats(greet_chat_members), ChatMemberHandler.CHAT_MEMBER))

@@ -40,6 +40,11 @@ MAIN_GROUP: str = next((str(c) for c in ALLOWED_CHATS if str(c).startswith("@"))
 # Moderation behaviour toggles.
 DELETE_ON_BAN: bool = bool(cfg.get("moderation", {}).get("delete_on_ban", True))
 
+# Warns before an automatic punishment, and what that punishment is (mute|ban).
+WARN_LIMIT: int = int(cfg.get("moderation", {}).get("warn_limit", 3))
+_warn_action: str = str(cfg.get("moderation", {}).get("warn_action", "mute")).lower()
+WARN_ACTION: str = _warn_action if _warn_action in {"mute", "ban"} else "mute"
+
 # Path to the SQLite database that holds moderation state (warns, mutes, stats).
 # Env DB_PATH wins over config.yaml so deployments can point it at a mounted
 # volume without touching the image.

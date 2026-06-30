@@ -7,6 +7,9 @@ allowed_chats:
 moderation:
   # Delete the replied-to message when banning by reply.
   delete_on_ban: true
+  # Number of warns before an automatic punishment, and what it does (mute|ban).
+  warn_limit: 3
+  warn_action: mute
 
 storage:
   # SQLite database file for moderation state. Overridden by the DB_PATH env var.
