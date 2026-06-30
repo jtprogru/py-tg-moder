@@ -8,3 +8,8 @@ moderation:
   # Delete the replied-to message when banning by reply.
   delete_on_ban: true
 
+storage:
+  # SQLite database file for moderation state. Overridden by the DB_PATH env var.
+  # Point this at a mounted volume so state survives restarts.
+  path: 'moder.db'
+

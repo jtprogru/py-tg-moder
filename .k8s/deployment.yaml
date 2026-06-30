@@ -1,3 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: py-tg-moder-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 256Mi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,6 +18,9 @@ spec:
     matchLabels:
       app: py-tg-moder
   replicas: 1
+  # Single replica owns the SQLite file; recreate (don't run two pods at once).
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -22,6 +36,14 @@ spec:
               secretKeyRef:
                 name: py-tg-moder-secret
                 key: tg_token
+          - name: DB_PATH
+            value: /data/moder.db
+        volumeMounts:
+          - name: data
+            mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: py-tg-moder-data
       imagePullSecrets:
       - name: ghcrio-auth-secret
-

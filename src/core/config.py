@@ -40,6 +40,11 @@ MAIN_GROUP: str = next((str(c) for c in ALLOWED_CHATS if str(c).startswith("@"))
 # Moderation behaviour toggles.
 DELETE_ON_BAN: bool = bool(cfg.get("moderation", {}).get("delete_on_ban", True))
 
+# Path to the SQLite database that holds moderation state (warns, mutes, stats).
+# Env DB_PATH wins over config.yaml so deployments can point it at a mounted
+# volume without touching the image.
+DB_PATH: str = os.getenv("DB_PATH") or str(cfg.get("storage", {}).get("path", "moder.db"))
+
 DEBUG: bool = _parse_bool(os.getenv("DEBUG"))
 SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
 
