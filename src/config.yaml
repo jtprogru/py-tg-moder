@@ -28,6 +28,12 @@ moderation:
     limit: 7
     window_seconds: 10
     mute_seconds: 60
+  # Captcha for new members: mute on join until they tap a button. Pass within
+  # timeout_seconds -> unmute + welcome; otherwise fail_action (kick|ban).
+  captcha:
+    enabled: true
+    timeout_seconds: 60
+    fail_action: kick
   # Delete disallowed media types from non-admins; optionally notify the author
   # with a notice that self-deletes after notify_ttl_seconds.
   media:

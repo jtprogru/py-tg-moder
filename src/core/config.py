@@ -63,6 +63,13 @@ FLOOD_LIMIT: int = int(_flood.get("limit", 7))
 FLOOD_WINDOW: int = int(_flood.get("window_seconds", 10))
 FLOOD_MUTE_SECONDS: int = int(_flood.get("mute_seconds", 60))
 
+# Captcha / verification of new members.
+_captcha: dict = cfg.get("moderation", {}).get("captcha", {}) or {}
+CAPTCHA_ENABLED: bool = bool(_captcha.get("enabled", True))
+CAPTCHA_TIMEOUT: int = int(_captcha.get("timeout_seconds", 60))
+_captcha_fail: str = str(_captcha.get("fail_action", "kick")).lower()
+CAPTCHA_FAIL_ACTION: str = _captcha_fail if _captcha_fail in {"kick", "ban"} else "kick"
+
 # Managed media deletion: which media types to delete from non-admins.
 _media: dict = cfg.get("moderation", {}).get("media", {}) or {}
 MEDIA_ENABLED: bool = bool(_media.get("enabled", True))
