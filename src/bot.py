@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Global BOT command."""
+
 import logging
 import sentry_sdk
 from telegram import Update
-from telegram.ext import ChatMemberHandler, CommandHandler, Filters, MessageHandler, Updater
+from telegram.ext import Application, ChatMemberHandler, CommandHandler, MessageHandler, filters
 
 from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
 from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
@@ -16,42 +17,41 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 
-if __name__ == "__main__":
-
+def main() -> None:
     sentry_sdk.init(SENTRY_DSN, traces_sample_rate=1.0)
 
-    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
-    # Get the dispatcher to register handlers
-    dispatcher = updater.dispatcher
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Keep track of which chats the bot is in
-    dispatcher.add_handler(CommandHandler("ping", ping))
+    application.add_handler(CommandHandler("ping", ping))
     # Ban user manual
-    dispatcher.add_handler(CommandHandler("ban", ban_user))
+    application.add_handler(CommandHandler("ban", ban_user))
     # Unban user manual
-    dispatcher.add_handler(CommandHandler("ban", unban_user))
+    application.add_handler(CommandHandler("unban", unban_user))
     # Mute user manual
-    dispatcher.add_handler(CommandHandler("mute", mute_user))
+    application.add_handler(CommandHandler("mute", mute_user))
     # Unmute user manual
-    dispatcher.add_handler(CommandHandler("mute", unmute_user))
+    application.add_handler(CommandHandler("unmute", unmute_user))
 
     # Welcome message
-    dispatcher.add_handler(ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER))
+    application.add_handler(ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER))
     # Delete voice message
-    dispatcher.add_handler(MessageHandler(Filters.voice, delete_bad_message))
+    application.add_handler(MessageHandler(filters.VOICE, delete_bad_message))
     # Delete video message
-    dispatcher.add_handler(MessageHandler(Filters.video, delete_bad_message))
+    application.add_handler(MessageHandler(filters.VIDEO, delete_bad_message))
     # Delete locations
-    dispatcher.add_handler(MessageHandler(Filters.location, delete_bad_message))
+    application.add_handler(MessageHandler(filters.LOCATION, delete_bad_message))
     # Delete video note
-    dispatcher.add_handler(MessageHandler(Filters.video_note, delete_bad_message))
+    application.add_handler(MessageHandler(filters.VIDEO_NOTE, delete_bad_message))
     # Delete left chat member
-    dispatcher.add_handler(MessageHandler(Filters.status_update.left_chat_member, delete_bad_message))
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, delete_bad_message))
     # Delete new chat member
-    dispatcher.add_handler(MessageHandler(Filters.status_update.new_chat_members, delete_bad_message))
-    # TODO: This is work?
-    dispatcher.add_error_handler(errors_logging)
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, delete_bad_message))
 
-    updater.start_polling(allowed_updates=Update.ALL_TYPES)
+    application.add_error_handler(errors_logging)
 
-    updater.idle()
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+
+if __name__ == "__main__":
+    main()

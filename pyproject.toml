@@ -1,67 +1,57 @@
 [project]
 name = "py-tg-moder"
-version = "0.1.3"
+version = "0.2.0"
 description = "Simple bot for moderate my chat"
-authors = ["Michael Savin <jtprogru@gmail.com>"]
+authors = [{ name = "Mikhail Savin", email = "jtprogru@gmail.com" }]
 license = "MIT"
 readme = "README.md"
-python = "^3.8"
-homepage = "https://github.com/jtprogru/py-tg-moder"
-repository = "https://github.com/jtprogru/py-tg-moder"
-documentation = "https://github.com/jtprogru/py-tg-moder/wiki"
-
-[dependencies]
-python = "^3.9"
-python-telegram-bot = "^13.7"
-requests = "^2.26.0"
-ruamel.yaml = "^0.17.16"
-
-[tool.poetry.dev-dependencies]
-pytest = "^6.2.4"
-pytest-cov = "^3.0.0"
-pytest-env = "^0.6.2"
-black = "^21.7b0"
-flake8 = "^4.0.0"
-
-
-[build-system]
-requires = [
-    "setuptools >= 35.0.2",
-    "setuptools_scm >= 2.0.0, <3"
+requires-python = ">=3.14"
+dependencies = [
+  "python-telegram-bot>=22.0",
+  "requests>=2.32",
+  "ruamel.yaml>=0.18",
+  "sentry-sdk>=2",
 ]
-build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/jtprogru/py-tg-moder"
+Repository = "https://github.com/jtprogru/py-tg-moder"
+Documentation = "https://github.com/jtprogru/py-tg-moder/wiki"
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "pytest-env>=1",
+  "black>=24",
+  "flake8>=7",
+  "isort>=5",
+]
+
+[tool.uv]
+package = false
 
 [tool.pytest.ini_options]
 python_files = "test*.py"
-norecursedirs = [
-  ".git", ".tox", "venv*", "requirements*"
-]
-
+norecursedirs = [".git", ".tox", "venv*", ".venv", "requirements*"]
 addopts = '''
   --verbose
   --strict-markers
   --color=yes
   --tb=short
 '''
-testpaths = [
-    "tests",
-]
-
-env = [
-  "DEBUG=True",
-  "TELEGRAM_BOT_TOKEN='12345:xxxx'",
-]
+testpaths = ["tests"]
+env = ["DEBUG=True", "TELEGRAM_BOT_TOKEN='12345:xxxx'"]
 
 [tool.black]
 line-length = 160
-target-version = ['py37', 'py38', 'py39']
-black_skip_string_normalization = true
+target-version = ['py313']
+skip-string-normalization = true
 include = '\.pyi?$'
 extend-exclude = '''
 /(
   | migrations
   | venv
   | .venv
-  | tests
 )/
 '''

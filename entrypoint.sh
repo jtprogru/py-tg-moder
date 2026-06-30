@@ -1,3 +1,3 @@
 #!/bin/sh
 
-python3 bot.py
+uv run --no-sync python bot.py
