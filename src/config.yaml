@@ -21,6 +21,13 @@ moderation:
     block_links: true
     block_forwards: true
     block_mentions: true
+  # Flood control: more than `limit` messages within `window_seconds` from one
+  # user triggers a temporary mute for `mute_seconds` (native Telegram until_date).
+  flood:
+    enabled: true
+    limit: 7
+    window_seconds: 10
+    mute_seconds: 60
 
 storage:
   # SQLite database file for moderation state. Overridden by the DB_PATH env var.

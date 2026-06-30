@@ -11,6 +11,7 @@ from core.allowlist import resolve_allowlist, restricted_to_allowed_chats
 from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
 from core.storage import get_storage
 from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
+from handlers.flood_control import flood_control
 from handlers.info_handlers import help_command, start
 from handlers.message_moderation import moderate_message
 from handlers.service_handlers import delete_bad_message, errors_logging, ping
@@ -76,6 +77,13 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, restricted_to_allowed_chats(delete_bad_message)))
     # Delete new chat member
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, restricted_to_allowed_chats(delete_bad_message)))
+
+    # Flood control runs in its own group so it counts every message regardless
+    # of which group-0 handler also processes it.
+    application.add_handler(
+        MessageHandler(filters.ALL & ~filters.StatusUpdate.ALL, restricted_to_allowed_chats(flood_control)),
+        group=1,
+    )
 
     application.add_error_handler(errors_logging)
 

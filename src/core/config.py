@@ -56,6 +56,13 @@ NEWCOMER_BLOCK_LINKS: bool = bool(_newcomer.get("block_links", True))
 NEWCOMER_BLOCK_FORWARDS: bool = bool(_newcomer.get("block_forwards", True))
 NEWCOMER_BLOCK_MENTIONS: bool = bool(_newcomer.get("block_mentions", True))
 
+# Flood control: >limit messages within window_seconds -> temporary mute.
+_flood: dict = cfg.get("moderation", {}).get("flood", {}) or {}
+FLOOD_ENABLED: bool = bool(_flood.get("enabled", True))
+FLOOD_LIMIT: int = int(_flood.get("limit", 7))
+FLOOD_WINDOW: int = int(_flood.get("window_seconds", 10))
+FLOOD_MUTE_SECONDS: int = int(_flood.get("mute_seconds", 60))
+
 # Path to the SQLite database that holds moderation state (warns, mutes, stats).
 # Env DB_PATH wins over config.yaml so deployments can point it at a mounted
 # volume without touching the image.
