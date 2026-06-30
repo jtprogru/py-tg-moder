@@ -1,5 +1,6 @@
 import asyncio
 import logging
+
 from telegram import LinkPreviewOptions, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
@@ -22,16 +23,19 @@ async def greet_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
     member_name = update.chat_member.new_chat_member.user.mention_html()
 
     if not was_member and is_member:
-        check = await asyncio.to_thread(casapi.check, user_id=update.chat_member.new_chat_member.user.id)
-        logger.debug(f"[DEBUG] User with ID {update.chat_member.new_chat_member.user.id} was checked")
+        user_id = update.chat_member.new_chat_member.user.id
+        check = await asyncio.to_thread(casapi.check, user_id=user_id)
+        logger.debug(f"[DEBUG] User with ID {user_id} was checked")
+        # CAS returns ok=True when the user is listed as a spammer,
+        # and ok=False ("Record not found.") when the user is clean.
         if check["ok"]:
+            logger.info(f"[INFO] User with ID {user_id} found in CAS, was banned")
+            await update.effective_chat.ban_member(user_id=user_id)
+        else:
             await update.effective_chat.send_message(
                 f'Хомячок {member_name} пришёл.\n\nВелкам и прочти <a href="{CHAT_RULES_URL}">правила</a>!',
                 parse_mode=ParseMode.HTML,
                 link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
-        else:
-            logger.debug(f"[INFO] User with ID {update.chat_member.new_chat_member.user.id} was banned")
-            await update.effective_chat.ban_member(user_id=update.chat_member.new_chat_member.user.id)
     elif was_member and not is_member:
         logger.debug(f"[INFO] User with ID {update.chat_member.new_chat_member.user.id} was leave")

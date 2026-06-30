@@ -1,6 +1,6 @@
+import logging
 from typing import Optional, Tuple
 
-import logging
 from telegram import ChatMember, ChatMemberUpdated
 
 logger = logging.getLogger(__name__)

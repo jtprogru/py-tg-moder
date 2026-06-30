@@ -2,6 +2,7 @@
 """Global BOT command."""
 
 import logging
+
 import sentry_sdk
 from telegram import Update
 from telegram.ext import Application, ChatMemberHandler, CommandHandler, MessageHandler, filters
@@ -11,9 +12,7 @@ from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
 from handlers.service_handlers import delete_bad_message, errors_logging, ping
 from handlers.user_handlers import greet_chat_members
 
-# Enable logging
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
-
+# Logging is configured once in core.config (imported above).
 logger = logging.getLogger(__name__)
 
 

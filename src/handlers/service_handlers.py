@@ -1,9 +1,9 @@
 import logging
+
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 

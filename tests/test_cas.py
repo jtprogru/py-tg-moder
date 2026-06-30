@@ -12,12 +12,22 @@ class FakeResponse:
 
 
 def test_check_ok(monkeypatch):
-    monkeypatch.setattr(cas_module.requests, "get", lambda url: FakeResponse(200, {"ok": True}))
+    monkeypatch.setattr(cas_module.requests, "get", lambda url, **kwargs: FakeResponse(200, {"ok": True}))
     assert casapi.check(user_id=123) == {"ok": True}
 
 
 def test_check_not_found(monkeypatch):
-    monkeypatch.setattr(cas_module.requests, "get", lambda url: FakeResponse(404, {}))
+    monkeypatch.setattr(cas_module.requests, "get", lambda url, **kwargs: FakeResponse(404, {}))
+    result = casapi.check(user_id=123)
+    assert result["ok"] is False
+    assert "description" in result
+
+
+def test_check_network_error_fails_open(monkeypatch):
+    def _boom(url, **kwargs):
+        raise cas_module.requests.RequestException("boom")
+
+    monkeypatch.setattr(cas_module.requests, "get", _boom)
     result = casapi.check(user_id=123)
     assert result["ok"] is False
     assert "description" in result

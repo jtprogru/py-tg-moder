@@ -22,20 +22,17 @@ jobs:
         cat > src/.env << EOF
           export SENTRY_DSN="https://xxxhsdshd@o444444.ingest.sentry.io/1234567"
           export TELEGRAM_BOT_TOKEN='1234567890:QWERTYUHGVFDRTGaaa'
-          export VERSION=0.1.2
+          export VERSION=0.2.0
         EOF
 
     - name: Install dependencies
       run: uv sync --dev
 
-    - name: Run black
-      run: uv run black --check src/
+    - name: Run ruff format check
+      run: uv run ruff format --check src/ tests/
 
-    - name: Run isort
-      run: uv run isort --check-only src/
-
-    - name: Run flake8
-      run: uv run flake8 src/
+    - name: Run ruff lint
+      run: uv run ruff check src/ tests/
 
     - name: Run pytest
       run: uv run pytest

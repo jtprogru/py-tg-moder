@@ -1,6 +1,6 @@
 # py-tg-moder
 
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Docker](https://github.com/jtprogru/py-tg-moder/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/jtprogru/py-tg-moder/actions/workflows/docker-publish.yml)
 [![Testing](https://github.com/jtprogru/py-tg-moder/actions/workflows/testing.yml/badge.svg?branch=develop)](https://github.com/jtprogru/py-tg-moder/actions/workflows/testing.yml)
 [![Deploy](https://github.com/jtprogru/py-tg-moder/actions/workflows/deploy-k8s.yml/badge.svg)](https://github.com/jtprogru/py-tg-moder/actions/workflows/deploy-k8s.yml)
@@ -23,7 +23,7 @@
 Перед запуском создать файлик `src/.env` с содержимым:
 ```ini
 export TELEGRAM_BOT_TOKEN='1234567890:qwertyuiopHGVBNVJHVJVMNBVMNBVposdfghi'
-export VERSION=0.1.2
+export VERSION=0.2.0
 export SENTRY_DSN="https://xxxxjkhkjahsdkjashd@o444444.ingest.sentry.io/1234567"
 ```
 
@@ -33,7 +33,6 @@ export SENTRY_DSN="https://xxxxjkhkjahsdkjashd@o444444.ingest.sentry.io/1234567"
 
 ```yaml
 ---
-version: '3.7'
 services:
   bot:
     image: ghcr.io/jtprogru/py-tg-moder:latest
