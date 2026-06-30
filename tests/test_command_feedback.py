@@ -40,7 +40,7 @@ class FakeChat:
     async def get_administrators(self):
         return self._admins
 
-    async def ban_member(self, user_id):
+    async def ban_member(self, user_id, until_date=None):
         if self._fail:
             raise Forbidden("not enough rights")
         self.banned.append(user_id)
@@ -51,6 +51,7 @@ class FakeContext:
         id = 999
 
     bot = _Bot()
+    args = []
 
 
 class FakeUpdate:

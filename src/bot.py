@@ -10,7 +10,7 @@ from telegram.ext import Application, ChatMemberHandler, CommandHandler, Message
 from core.allowlist import resolve_allowlist, restricted_to_allowed_chats
 from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
 from core.storage import get_storage
-from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
+from handlers.admin_handlers import ban_user, kick_user, mute_user, unban_user, unmute_user
 from handlers.flood_control import flood_control
 from handlers.info_handlers import help_command, start
 from handlers.message_moderation import moderate_message
@@ -40,10 +40,12 @@ def main() -> None:
     application.add_handler(CommandHandler("start", restricted_to_allowed_chats(start)))
     # Command and rules reference
     application.add_handler(CommandHandler("help", restricted_to_allowed_chats(help_command)))
-    # Ban user manual
+    # Ban user manual (optional duration: /ban 1d)
     application.add_handler(CommandHandler("ban", restricted_to_allowed_chats(ban_user)))
     # Unban user manual
     application.add_handler(CommandHandler("unban", restricted_to_allowed_chats(unban_user)))
+    # Kick user (ban + immediate unban)
+    application.add_handler(CommandHandler("kick", restricted_to_allowed_chats(kick_user)))
     # Mute user manual
     application.add_handler(CommandHandler("mute", restricted_to_allowed_chats(mute_user)))
     # Unmute user manual

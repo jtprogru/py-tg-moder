@@ -1,3 +1,5 @@
+import asyncio
+import time
 from typing import Awaitable, Callable, Optional
 
 from telegram import ChatPermissions, Update, User
@@ -5,6 +7,8 @@ from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
 from core.config import DELETE_ON_BAN, logger
+from core.duration import format_duration, parse_duration
+from core.storage import get_storage
 
 MUTE_PERMISSIONS = ChatPermissions(
     can_send_messages=False,
@@ -108,17 +112,28 @@ async def _apply_action(
     return True
 
 
+def _duration_from_args(context: ContextTypes.DEFAULT_TYPE) -> Optional[int]:
+    """Read an optional duration (e.g. ``30m``, ``1h``, ``1d``) from the first arg."""
+    if not context.args:
+        return None
+    return parse_duration(context.args[0])
+
+
 async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Ban the author of the replied-to message (admins only)."""
+    """Ban the author of the replied-to message; optional duration (/ban 1d)."""
     target = await _resolve_target(update, context)
     if target is None:
         return
 
     chat = update.effective_chat
     spam = update.effective_message.reply_to_message
-    if not await _apply_action(update, lambda: chat.ban_member(user_id=target.id), "🔨 Пользователь забанен."):
+    duration = _duration_from_args(context)
+    until_ts = int(time.time()) + duration if duration else None
+    suffix = f" на {format_duration(duration)}" if duration else ""
+
+    if not await _apply_action(update, lambda: chat.ban_member(user_id=target.id, until_date=until_ts), f"🔨 Пользователь забанен{suffix}."):
         return
-    logger.info(f"[INFO] User with ID {target.id} was banned")
+    logger.info(f"[INFO] User with ID {target.id} was banned (until={until_ts})")
 
     # Remove the offending message the ban was issued in reply to.
     if DELETE_ON_BAN and spam is not None:
@@ -141,16 +156,45 @@ async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     logger.info(f"[INFO] User with ID {target.id} was unbanned")
 
 
-async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Mute the author of the replied-to message (admins only)."""
+async def kick_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Kick the author of the replied-to message: ban then immediately unban.
+
+    The user is removed from the chat but is free to rejoin later.
+    """
     target = await _resolve_target(update, context)
     if target is None:
         return
 
     chat = update.effective_chat
-    if not await _apply_action(update, lambda: chat.restrict_member(user_id=target.id, permissions=MUTE_PERMISSIONS), "🔇 Пользователь замьючен."):
+
+    async def _kick() -> None:
+        await chat.ban_member(user_id=target.id)
+        await chat.unban_member(user_id=target.id)
+
+    if not await _apply_action(update, _kick, "👢 Пользователь кикнут."):
         return
-    logger.info(f"[INFO] User with ID {target.id} was muted")
+    logger.info(f"[INFO] User with ID {target.id} was kicked")
+
+
+async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Mute the author of the replied-to message; optional duration (/mute 30m)."""
+    target = await _resolve_target(update, context)
+    if target is None:
+        return
+
+    chat = update.effective_chat
+    duration = _duration_from_args(context)
+    until_ts = int(time.time()) + duration if duration else None
+    suffix = f" на {format_duration(duration)}" if duration else ""
+
+    if not await _apply_action(
+        update, lambda: chat.restrict_member(user_id=target.id, permissions=MUTE_PERMISSIONS, until_date=until_ts), f"🔇 Пользователь замьючен{suffix}."
+    ):
+        return
+    # Native until_date lifts the mute automatically; we also record it so the
+    # state is visible and survives a restart.
+    await asyncio.to_thread(get_storage().add_mute, chat.id, target.id, until_ts)
+    logger.info(f"[INFO] User with ID {target.id} was muted (until={until_ts})")
 
 
 async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -162,4 +206,5 @@ async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     chat = update.effective_chat
     if not await _apply_action(update, lambda: chat.restrict_member(user_id=target.id, permissions=UNMUTE_PERMISSIONS), "🔊 Пользователь размьючен."):
         return
+    await asyncio.to_thread(get_storage().remove_mute, chat.id, target.id)
     logger.info(f"[INFO] User with ID {target.id} was unmuted")
