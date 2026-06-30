@@ -131,3 +131,34 @@ def test_state_survives_reconnect(tmp_path):
     assert second.get_counter(1, "bans") == 4
     assert second.get_member(1, 42)["message_count"] == 1
     second.close()
+
+
+# -- username -> id cache --------------------------------------------------
+
+
+def test_remember_and_resolve_username(store):
+    store.remember_user(42, "Alice")
+    assert store.resolve_username("alice") == 42
+    assert store.resolve_username("@Alice") == 42  # @ and case-insensitive
+
+
+def test_remember_user_updates_id(store):
+    store.remember_user(1, "bob")
+    store.remember_user(2, "bob")  # username reassigned to a new account
+    assert store.resolve_username("bob") == 2
+
+
+def test_remember_user_without_username_is_noop(store):
+    store.remember_user(7, None)
+    store.remember_user(7, "")
+    assert store.resolve_username("nobody") is None
+
+
+def test_username_cache_survives_reconnect(tmp_path):
+    db = str(tmp_path / "u.db")
+    a = Storage(db)
+    a.remember_user(99, "carol")
+    a.close()
+    b = Storage(db)
+    assert b.resolve_username("carol") == 99
+    b.close()
