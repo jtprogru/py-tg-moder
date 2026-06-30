@@ -7,6 +7,7 @@ from telegram.ext import ContextTypes
 
 from core.cas import casapi
 from core.config import CHAT_RULES_URL
+from core.storage import get_storage
 
 from .helpers import extract_status_change
 
@@ -23,7 +24,10 @@ async def greet_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
     member_name = update.chat_member.new_chat_member.user.mention_html()
 
     if not was_member and is_member:
-        user_id = update.chat_member.new_chat_member.user.id
+        new_user = update.chat_member.new_chat_member.user
+        user_id = new_user.id
+        # Cache the joiner's @username so they can be targeted by name later.
+        await asyncio.to_thread(get_storage().remember_user, user_id, new_user.username)
         check = await asyncio.to_thread(casapi.check, user_id=user_id)
         logger.debug(f"[DEBUG] User with ID {user_id} was checked")
         # CAS returns ok=True when the user is listed as a spammer,

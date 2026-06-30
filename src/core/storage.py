@@ -54,6 +54,11 @@ CREATE TABLE IF NOT EXISTS counters (
     value   INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (chat_id, name)
 );
+
+CREATE TABLE IF NOT EXISTS usernames (
+    username TEXT PRIMARY KEY,
+    user_id  INTEGER NOT NULL
+);
 """
 
 
@@ -271,6 +276,34 @@ class Storage:
                 (chat_id, name),
             ).fetchone()
         return row["value"] if row else 0
+
+    # -- username -> id cache --------------------------------------------------
+
+    def remember_user(self, user_id: int, username: Optional[str]) -> None:
+        """Cache a @username -> user_id mapping so commands can target by name.
+
+        The Bot API can't resolve usernames on demand, so we remember the ones
+        we see. No-op for users without a username.
+        """
+        if not username:
+            return
+        uname = username.lower().lstrip("@")
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO usernames (username, user_id) VALUES (?, ?) ON CONFLICT(username) DO UPDATE SET user_id = excluded.user_id",
+                (uname, user_id),
+            )
+            self._conn.commit()
+
+    def resolve_username(self, username: str) -> Optional[int]:
+        """Return the cached user_id for a @username, or None if never seen."""
+        uname = username.lower().lstrip("@")
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT user_id FROM usernames WHERE username = ?",
+                (uname,),
+            ).fetchone()
+        return row["user_id"] if row else None
 
 
 _storage: Optional[Storage] = None

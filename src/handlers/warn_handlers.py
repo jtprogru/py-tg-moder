@@ -8,7 +8,7 @@ from telegram.ext import ContextTypes
 from core.config import WARN_ACTION, WARN_LIMIT, logger
 from core.storage import get_storage
 
-from .admin_handlers import MUTE_PERMISSIONS, _resolve_target
+from .admin_handlers import MUTE_PERMISSIONS, resolve_target
 
 
 def _format_date(ts: int) -> str:
@@ -45,14 +45,15 @@ async def _auto_punish(update: Update, user_id: int) -> str:
 
 
 async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Warn the author of the replied-to message; auto-punish at the limit."""
-    target = await _resolve_target(update, context)
-    if target is None:
+    """Warn a user by reply, @username or id; auto-punish at the limit."""
+    resolved = await resolve_target(update, context)
+    if resolved is None:
         return
+    target = resolved.user
 
     chat = update.effective_chat
     moderator = update.effective_user
-    reason = " ".join(context.args).strip() if context.args else None
+    reason = " ".join(resolved.extra_args).strip() if resolved.extra_args else None
 
     storage = get_storage()
     await asyncio.to_thread(storage.add_warn, chat.id, target.id, moderator.id, reason)
@@ -71,10 +72,11 @@ async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def warns_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show the warn history of the replied-to user (admins only)."""
-    target = await _resolve_target(update, context)
-    if target is None:
+    """Show the warn history of a user by reply, @username or id (admins only)."""
+    resolved = await resolve_target(update, context)
+    if resolved is None:
         return
+    target = resolved.user
 
     chat = update.effective_chat
     warns = await asyncio.to_thread(get_storage().list_warns, chat.id, target.id)
@@ -91,10 +93,11 @@ async def warns_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 
 async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Remove the most recent warn from the replied-to user (admins only)."""
-    target = await _resolve_target(update, context)
-    if target is None:
+    """Remove the most recent warn from a user by reply, @username or id (admins only)."""
+    resolved = await resolve_target(update, context)
+    if resolved is None:
         return
+    target = resolved.user
 
     chat = update.effective_chat
     storage = get_storage()

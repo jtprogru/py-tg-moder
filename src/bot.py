@@ -16,6 +16,7 @@ from handlers.info_handlers import help_command, start
 from handlers.media_moderation import build_media_filter, moderate_media
 from handlers.message_moderation import moderate_message
 from handlers.service_handlers import delete_bad_message, errors_logging, ping
+from handlers.user_cache import cache_seen_user
 from handlers.user_handlers import greet_chat_members
 from handlers.warn_handlers import unwarn_user, warn_user, warns_list
 
@@ -84,6 +85,12 @@ def main() -> None:
     application.add_handler(
         MessageHandler(filters.ALL & ~filters.StatusUpdate.ALL, restricted_to_allowed_chats(flood_control)),
         group=1,
+    )
+
+    # Cache @username -> id for everyone we see, so commands can target by name.
+    application.add_handler(
+        MessageHandler(filters.ALL & ~filters.StatusUpdate.ALL, restricted_to_allowed_chats(cache_seen_user)),
+        group=2,
     )
 
     application.add_error_handler(errors_logging)
