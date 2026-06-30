@@ -9,6 +9,7 @@ from telegram.ext import Application, ChatMemberHandler, CommandHandler, Message
 
 from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
 from handlers.admin_handlers import ban_user, mute_user, unban_user, unmute_user
+from handlers.info_handlers import help_command, start
 from handlers.service_handlers import delete_bad_message, errors_logging, ping
 from handlers.user_handlers import greet_chat_members
 
@@ -23,6 +24,10 @@ def main() -> None:
 
     # Keep track of which chats the bot is in
     application.add_handler(CommandHandler("ping", ping))
+    # Greeting / private intro
+    application.add_handler(CommandHandler("start", start))
+    # Command and rules reference
+    application.add_handler(CommandHandler("help", help_command))
     # Ban user manual
     application.add_handler(CommandHandler("ban", ban_user))
     # Unban user manual
