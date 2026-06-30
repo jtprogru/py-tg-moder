@@ -34,6 +34,9 @@ CHAT_RULES_URL: str = "https://jtprog.ru/chat-rules/"
 # Human-readable handle of the chat this bot serves, shown in /start and /help.
 MAIN_GROUP: str = cfg.get("groups", {}).get("main_group", "")
 
+# Moderation behaviour toggles.
+DELETE_ON_BAN: bool = bool(cfg.get("moderation", {}).get("delete_on_ban", True))
+
 DEBUG: bool = _parse_bool(os.getenv("DEBUG"))
 SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
 

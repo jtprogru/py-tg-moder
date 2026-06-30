@@ -3,7 +3,7 @@ from typing import Optional
 from telegram import ChatPermissions, Update, User
 from telegram.ext import ContextTypes
 
-from core.config import logger
+from core.config import DELETE_ON_BAN, logger
 
 MUTE_PERMISSIONS = ChatPermissions(
     can_send_messages=False,
@@ -87,6 +87,13 @@ async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.effective_chat.ban_member(user_id=target.id)
     logger.info(f"[INFO] User with ID {target.id} was banned")
+
+    # Remove the offending message the ban was issued in reply to.
+    if DELETE_ON_BAN:
+        spam = update.effective_message.reply_to_message
+        if spam is not None:
+            await spam.delete()
+            logger.info(f"[INFO] Spam message {spam.message_id} from {target.id} was deleted")
 
 
 async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

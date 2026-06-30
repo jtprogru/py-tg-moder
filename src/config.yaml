@@ -2,3 +2,7 @@
 groups:
   main_group: '@jtprogru_chat'
 
+moderation:
+  # Delete the replied-to message when banning by reply.
+  delete_on_ban: true
+
