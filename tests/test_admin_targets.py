@@ -38,10 +38,10 @@ class FakeChat:
     async def get_administrators(self):
         return self._admins
 
-    async def ban_member(self, user_id):
+    async def ban_member(self, user_id, until_date=None):
         self.banned.append(user_id)
 
-    async def restrict_member(self, user_id, permissions):
+    async def restrict_member(self, user_id, permissions, until_date=None):
         self.restricted.append(user_id)
 
 
@@ -53,6 +53,7 @@ class FakeBot:
 class FakeContext:
     def __init__(self, bot_id):
         self.bot = FakeBot(bot_id)
+        self.args = []
 
 
 class FakeUpdate:
