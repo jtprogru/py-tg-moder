@@ -10,6 +10,17 @@ moderation:
   # Number of warns before an automatic punishment, and what it does (mute|ban).
   warn_limit: 3
   warn_action: mute
+  # Content filter for messages from newcomers (also re-checks edited messages).
+  newcomer_filter:
+    enabled: true
+    # A user is a "newcomer" until they hit either threshold (whichever first).
+    max_messages: 5
+    max_age_seconds: 86400
+    # What to do on a hit: delete | mute | warn.
+    action: delete
+    block_links: true
+    block_forwards: true
+    block_mentions: true
 
 storage:
   # SQLite database file for moderation state. Overridden by the DB_PATH env var.
