@@ -11,7 +11,7 @@ from core.allowlist import resolve_allowlist, restricted_to_allowed_chats
 from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
 from core.storage import get_storage
 from handlers.admin_handlers import ban_user, kick_user, mute_user, unban_user, unmute_user
-from handlers.captcha import captcha_callback
+from handlers.captcha import captcha_callback, rearm_captchas
 from handlers.flood_control import flood_control
 from handlers.info_handlers import help_command, start
 from handlers.media_moderation import build_media_filter, moderate_media
@@ -25,6 +25,13 @@ from handlers.warn_handlers import unwarn_user, warn_user, warns_list
 logger = logging.getLogger(__name__)
 
 
+async def _post_init(application) -> None:
+    """Runtime setup once the bot is ready: resolve the allowlist and rearm
+    any captcha challenges that were pending when the process last stopped."""
+    await resolve_allowlist(application)
+    await rearm_captchas(application)
+
+
 def main() -> None:
     sentry_sdk.init(SENTRY_DSN, traces_sample_rate=1.0)
 
@@ -33,7 +40,7 @@ def main() -> None:
     logger.info("[INFO] Storage ready at %s", storage.path)
 
     # Resolve the configured allowlist (@usernames -> ids) once the bot is ready.
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(resolve_allowlist).build()
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(_post_init).build()
 
     # Every handler is gated by the chat allowlist so the bot only acts in
     # configured chats (and private DMs); foreign chats are left silently.

@@ -18,7 +18,12 @@ class __CASApi:
             return {"ok": False, "description": "Record not found."}
         if res.status_code != 200:
             return {"ok": False, "description": "Record not found."}
-        return res.json()
+        try:
+            return res.json()
+        except ValueError:
+            # A 200 with a malformed body must not crash the join flow; fail
+            # open like the network-error case above.
+            return {"ok": False, "description": "Record not found."}
 
 
 casapi = __CASApi()

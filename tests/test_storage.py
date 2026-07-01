@@ -162,3 +162,36 @@ def test_username_cache_survives_reconnect(tmp_path):
     b = Storage(db)
     assert b.resolve_username("carol") == 99
     b.close()
+
+
+# -- captchas --------------------------------------------------------------
+
+
+def test_add_and_list_captcha(store):
+    store.add_captcha(1, 42, message_id=555, deadline=1000)
+    rows = store.list_captchas()
+    assert rows == [{"chat_id": 1, "user_id": 42, "message_id": 555, "deadline": 1000}]
+
+
+def test_add_captcha_upserts(store):
+    store.add_captcha(1, 42, message_id=555, deadline=1000)
+    store.add_captcha(1, 42, message_id=777, deadline=2000)  # re-challenge same user
+    rows = store.list_captchas()
+    assert rows == [{"chat_id": 1, "user_id": 42, "message_id": 777, "deadline": 2000}]
+
+
+def test_remove_captcha(store):
+    store.add_captcha(1, 42, message_id=555, deadline=1000)
+    assert store.remove_captcha(1, 42) is True
+    assert store.remove_captcha(1, 42) is False  # already gone
+    assert store.list_captchas() == []
+
+
+def test_captcha_survives_reconnect(tmp_path):
+    db = str(tmp_path / "c.db")
+    a = Storage(db)
+    a.add_captcha(1, 42, message_id=555, deadline=1000)
+    a.close()
+    b = Storage(db)
+    assert b.list_captchas() == [{"chat_id": 1, "user_id": 42, "message_id": 555, "deadline": 1000}]
+    b.close()

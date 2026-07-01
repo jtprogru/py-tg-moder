@@ -59,6 +59,14 @@ CREATE TABLE IF NOT EXISTS usernames (
     username TEXT PRIMARY KEY,
     user_id  INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS captchas (
+    chat_id    INTEGER NOT NULL,
+    user_id    INTEGER NOT NULL,
+    message_id INTEGER NOT NULL,
+    deadline   INTEGER NOT NULL,
+    PRIMARY KEY (chat_id, user_id)
+);
 """
 
 
@@ -304,6 +312,39 @@ class Storage:
                 (uname,),
             ).fetchone()
         return row["user_id"] if row else None
+
+    # -- pending captcha challenges --------------------------------------------
+
+    def add_captcha(self, chat_id: int, user_id: int, message_id: int, deadline: int) -> None:
+        """Persist a pending captcha so it can be rearmed after a restart.
+
+        ``deadline`` is the unix timestamp by which the user must pass, and
+        ``message_id`` is the challenge message so it can be removed later.
+        """
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO captchas (chat_id, user_id, message_id, deadline) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(chat_id, user_id) DO UPDATE SET message_id = excluded.message_id, deadline = excluded.deadline",
+                (chat_id, user_id, message_id, deadline),
+            )
+            self._conn.commit()
+
+    def remove_captcha(self, chat_id: int, user_id: int) -> bool:
+        with self._lock:
+            cur = self._conn.execute(
+                "DELETE FROM captchas WHERE chat_id = ? AND user_id = ?",
+                (chat_id, user_id),
+            )
+            self._conn.commit()
+        return cur.rowcount > 0
+
+    def list_captchas(self) -> list[dict]:
+        """Return all pending captcha challenges (used to rearm timers on startup)."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT chat_id, user_id, message_id, deadline FROM captchas ORDER BY chat_id, user_id",
+            ).fetchall()
+        return [dict(r) for r in rows]
 
 
 _storage: Optional[Storage] = None

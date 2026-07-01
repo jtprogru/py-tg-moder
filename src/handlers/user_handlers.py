@@ -28,8 +28,11 @@ async def greet_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not was_member and is_member:
         new_user = update.chat_member.new_chat_member.user
         user_id = new_user.id
-        # Cache the joiner's @username so they can be targeted by name later.
-        await asyncio.to_thread(get_storage().remember_user, user_id, new_user.username)
+        storage = get_storage()
+        # Record the join so the newcomer age window is measured from here, and
+        # cache the joiner's @username so they can be targeted by name later.
+        await asyncio.to_thread(storage.record_member, update.effective_chat.id, user_id)
+        await asyncio.to_thread(storage.remember_user, user_id, new_user.username)
         check = await asyncio.to_thread(casapi.check, user_id=user_id)
         logger.debug(f"[DEBUG] User with ID {user_id} was checked")
         # CAS returns ok=True when the user is listed as a spammer,

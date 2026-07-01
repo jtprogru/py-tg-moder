@@ -4,17 +4,20 @@ On join a newcomer is muted and shown a button. Tapping it within the timeout
 unmutes them and posts the welcome; otherwise they are kicked or banned. A CAS
 hit never reaches here — those are banned outright before the challenge.
 
-Pending challenges live in memory and the timeout is an asyncio task (no
-job-queue dependency). The mute is permanent until the user passes — never
-fail-open, or an automated bot would gain write access just by waiting.
+Pending challenges are persisted (so a restart mid-challenge does not leave a
+newcomer muted forever with no button) and the timeout is an asyncio task (no
+job-queue dependency). ``rearm_captchas`` reloads them on startup. The mute is
+permanent until the user passes — never fail-open, or an automated bot would
+gain write access just by waiting.
 """
 
 import asyncio
+import time
 from typing import Optional
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, Update, User
 from telegram.constants import ParseMode
-from telegram.error import BadRequest, Forbidden
+from telegram.error import BadRequest, Forbidden, TelegramError
 from telegram.ext import ContextTypes
 
 from core import config
@@ -23,7 +26,7 @@ from core.storage import get_storage
 
 from .admin_handlers import MUTE_PERMISSIONS, UNMUTE_PERMISSIONS
 
-# (chat_id, user_id) -> challenge Message, so it can be removed on pass/timeout.
+# (chat_id, user_id) -> challenge message_id, so it can be removed on pass/timeout.
 _pending: dict = {}
 # Strong refs to in-flight timeout tasks so they are not garbage-collected.
 _tasks: set = set()
@@ -31,6 +34,11 @@ _tasks: set = set()
 
 def _key(chat_id: int, user_id: int) -> tuple:
     return (chat_id, user_id)
+
+
+def _track(task: asyncio.Task) -> None:
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
 
 
 async def start_challenge(chat, user: User) -> None:
@@ -54,22 +62,28 @@ async def start_challenge(chat, user: User) -> None:
         logger.warning("[WARN] Could not send captcha to %s: %s", user.id, exc)
         return
 
-    _pending[_key(chat.id, user.id)] = message
-    task = asyncio.create_task(_expire(chat, user.id))
-    _tasks.add(task)
-    task.add_done_callback(_tasks.discard)
+    deadline = int(time.time()) + config.CAPTCHA_TIMEOUT
+    _pending[_key(chat.id, user.id)] = message.message_id
+    await asyncio.to_thread(get_storage().add_captcha, chat.id, user.id, message.message_id, deadline)
+    _track(asyncio.create_task(_expire(chat, user.id)))
     logger.info("[INFO] Captcha started for user %s", user.id)
 
 
-async def _expire(chat, user_id: int) -> None:
-    """After the timeout, punish the user if they still haven't passed."""
-    await asyncio.sleep(config.CAPTCHA_TIMEOUT)
-    message = _pending.pop(_key(chat.id, user_id), None)
-    if message is None:
+async def _expire(chat, user_id: int, delay: Optional[int] = None) -> None:
+    """Wait out the timeout, then punish the user if they still haven't passed."""
+    await asyncio.sleep(config.CAPTCHA_TIMEOUT if delay is None else delay)
+    await _punish_if_pending(chat, user_id)
+
+
+async def _punish_if_pending(chat, user_id: int) -> None:
+    """Kick/ban the user and clean up, unless they already passed in the meantime."""
+    message_id = _pending.pop(_key(chat.id, user_id), None)
+    if message_id is None:
         return  # already passed
+    await asyncio.to_thread(get_storage().remove_captcha, chat.id, user_id)
 
     try:
-        await message.delete()
+        await chat.delete_message(message_id)
     except BadRequest, Forbidden:
         pass
 
@@ -81,6 +95,30 @@ async def _expire(chat, user_id: int) -> None:
     except (BadRequest, Forbidden) as exc:
         logger.warning("[WARN] Captcha fail-action for %s failed: %s", user_id, exc)
     logger.info("[INFO] Captcha timed out for user %s (action=%s)", user_id, config.CAPTCHA_FAIL_ACTION)
+
+
+async def rearm_captchas(application) -> None:
+    """Reload persisted captcha challenges on startup and rearm their timeouts.
+
+    A challenge whose deadline has already passed is punished immediately;
+    otherwise a fresh timeout is scheduled for the remaining time. Chats we can
+    no longer reach are dropped so a stale row can't wedge startup.
+    """
+    bot = application.bot
+    rows = await asyncio.to_thread(get_storage().list_captchas)
+    now = int(time.time())
+    for row in rows:
+        chat_id, user_id, message_id, deadline = row["chat_id"], row["user_id"], row["message_id"], row["deadline"]
+        try:
+            chat = await bot.get_chat(chat_id)
+        except TelegramError as exc:
+            logger.warning("[WARN] Dropping captcha for %s in unreachable chat %s: %s", user_id, chat_id, exc)
+            await asyncio.to_thread(get_storage().remove_captcha, chat_id, user_id)
+            continue
+        _pending[_key(chat_id, user_id)] = message_id
+        remaining = max(0, deadline - now)
+        _track(asyncio.create_task(_expire(chat, user_id, delay=remaining)))
+        logger.info("[INFO] Rearmed captcha for user %s in chat %s (%ss left)", user_id, chat_id, remaining)
 
 
 async def captcha_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -99,7 +137,8 @@ async def captcha_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("Эта кнопка не для тебя 🙂")
         return
 
-    message = _pending.pop(_key(chat.id, target_id), None)
+    message_id = _pending.pop(_key(chat.id, target_id), None)
+    await asyncio.to_thread(get_storage().remove_captcha, chat.id, target_id)
 
     try:
         await chat.restrict_member(user_id=target_id, permissions=UNMUTE_PERMISSIONS)
@@ -108,9 +147,9 @@ async def captcha_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await asyncio.to_thread(get_storage().remove_mute, chat.id, target_id)
 
     await query.answer("Спасибо! Доступ открыт.")
-    if message is not None:
+    if message_id is not None:
         try:
-            await message.delete()
+            await chat.delete_message(message_id)
         except BadRequest, Forbidden:
             pass
 

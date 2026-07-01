@@ -31,3 +31,18 @@ def test_check_network_error_fails_open(monkeypatch):
     result = casapi.check(user_id=123)
     assert result["ok"] is False
     assert "description" in result
+
+
+class _BadJsonResponse:
+    status_code = 200
+
+    def json(self):
+        raise ValueError("no json")
+
+
+def test_check_malformed_json_fails_open(monkeypatch):
+    # A 200 with a body that isn't JSON must not crash the join flow.
+    monkeypatch.setattr(cas_module.requests, "get", lambda url, **kwargs: _BadJsonResponse())
+    result = casapi.check(user_id=123)
+    assert result["ok"] is False
+    assert "description" in result
