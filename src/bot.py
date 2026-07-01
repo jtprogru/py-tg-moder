@@ -5,12 +5,13 @@ import logging
 
 import sentry_sdk
 from telegram import Update
-from telegram.ext import Application, ChatMemberHandler, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CallbackQueryHandler, ChatMemberHandler, CommandHandler, MessageHandler, filters
 
 from core.allowlist import resolve_allowlist, restricted_to_allowed_chats
 from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
 from core.storage import get_storage
 from handlers.admin_handlers import ban_user, kick_user, mute_user, unban_user, unmute_user
+from handlers.captcha import captcha_callback
 from handlers.flood_control import flood_control
 from handlers.info_handlers import help_command, start
 from handlers.media_moderation import build_media_filter, moderate_media
@@ -67,8 +68,10 @@ def main() -> None:
         )
     )
 
-    # Welcome message
+    # Welcome message / captcha challenge on join
     application.add_handler(ChatMemberHandler(restricted_to_allowed_chats(greet_chat_members), ChatMemberHandler.CHAT_MEMBER))
+    # Captcha button taps
+    application.add_handler(CallbackQueryHandler(restricted_to_allowed_chats(captcha_callback), pattern=r"^captcha:"))
 
     # Delete configured media types from non-admins (notifies the author)
     media_filter = build_media_filter()
