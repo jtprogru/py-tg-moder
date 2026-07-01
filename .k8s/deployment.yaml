@@ -31,7 +31,7 @@ spec:
         image: ghcr.io/jtprogru/py-tg-moder:latest
         imagePullPolicy: Always
         env:
-          - name: TOKEN
+          - name: TELEGRAM_BOT_TOKEN
             valueFrom:
               secretKeyRef:
                 name: py-tg-moder-secret

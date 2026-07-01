@@ -25,9 +25,9 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: py-tg-moder-secret
-  type: Opaque
-  data:
-    tg_token: MTIzNDU2Nzg5MDplcnR5dWlpdXl0cmUK
+type: Opaque
+data:
+  tg_token: MTIzNDU2Nzg5MDplcnR5dWlpdXl0cmUK
 ```
 
 И собственно говоря применяем файлик в K8s с помощью `kubectl`:
