@@ -5,7 +5,6 @@ SHELL := /bin/bash
 -include src/.env
 
 V=${VERSION}
-T=${TELEGRAM_BOT_TOKEN}
 
 .PHONY: default help test-full sync sync-dev run build-img pytest fmt lint clean
 
@@ -25,7 +24,7 @@ run: ## Run the bot locally
 	cd src && source ./.env && uv run python bot.py
 
 build-img: src/.env ## Build and tag the Docker image
-	docker build . --tag ghcr.io/jtprogru/py-tg-moder:$V --build-arg TOKEN=$T
+	docker build . --tag ghcr.io/jtprogru/py-tg-moder:$V
 	docker tag ghcr.io/jtprogru/py-tg-moder:$V ghcr.io/jtprogru/py-tg-moder:latest
 
 pytest: clean ## Run the test suite

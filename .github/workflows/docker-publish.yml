@@ -10,7 +10,6 @@ env:
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
-  TG_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
 
 
 jobs:
@@ -52,4 +51,3 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: "TOKEN=${{ env.TG_TOKEN }}"

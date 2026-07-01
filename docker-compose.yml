@@ -2,5 +2,14 @@
 services:
   bot:
     image: ghcr.io/jtprogru/py-tg-moder:latest
+    restart: unless-stopped
     env_file:
       - ./src/.env
+    environment:
+      # Keep SQLite state on the mounted volume so it survives recreation.
+      DB_PATH: /data/moder.db
+    volumes:
+      - moder-data:/data
+
+volumes:
+  moder-data:

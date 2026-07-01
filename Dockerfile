@@ -5,10 +5,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /bot
 
-ARG TOKEN
+# The bot token is a runtime secret and is intentionally NOT baked into the
+# image — supply TELEGRAM_BOT_TOKEN via env at run time (compose env_file,
+# k8s secret, `docker run -e`). Keeps the published image safe to share.
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV TELEGRAM_BOT_TOKEN=$TOKEN
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
