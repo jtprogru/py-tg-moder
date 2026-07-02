@@ -32,14 +32,6 @@ jobs:
     - name: Verify uv.lock is up to date
       run: uv lock --check
 
-    - name: Generate simple env
-      run: |
-        cat > src/.env << EOF
-          export SENTRY_DSN="https://xxxhsdshd@o444444.ingest.sentry.io/1234567"
-          export TELEGRAM_BOT_TOKEN='1234567890:QWERTYUHGVFDRTGaaa'
-          export VERSION=0.2.0
-        EOF
-
     - name: Install dependencies
       run: uv sync --dev
 
