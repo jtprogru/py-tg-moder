@@ -70,6 +70,13 @@ CAPTCHA_TIMEOUT: int = int(_captcha.get("timeout_seconds", 60))
 _captcha_fail: str = str(_captcha.get("fail_action", "kick")).lower()
 CAPTCHA_FAIL_ACTION: str = _captcha_fail if _captcha_fail in {"kick", "ban"} else "kick"
 
+# Anti-raid: join-spike detection and temporary hardening.
+_raid: dict = cfg.get("moderation", {}).get("raid", {}) or {}
+RAID_ENABLED: bool = bool(_raid.get("enabled", True))
+RAID_JOIN_LIMIT: int = int(_raid.get("join_limit", 10))
+RAID_WINDOW: int = int(_raid.get("window_seconds", 60))
+RAID_DURATION: int = int(_raid.get("duration_seconds", 600))
+
 # Managed media deletion: which media types to delete from non-admins.
 _media: dict = cfg.get("moderation", {}).get("media", {}) or {}
 MEDIA_ENABLED: bool = bool(_media.get("enabled", True))

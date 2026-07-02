@@ -42,6 +42,10 @@
     <span class="tile-value">{{ totals.active_mutes }}</span>
     <span class="tile-label">активных мьютов сейчас</span>
   </div>
+  <div class="tile card{% if raid_active %} tile-alert{% endif %}" role="listitem">
+    <span class="tile-value">{% if raid_active %}⚠️ активен{% else %}спокойно{% endif %}</span>
+    <span class="tile-label">anti-raid ({{ raids_total }} за {{ days }} дн)</span>
+  </div>
 </div>
 
 <section class="card">

@@ -27,3 +27,12 @@ def audit_store(monkeypatch):
     monkeypatch.setattr(storage, "_storage", s)
     yield s
     s.close()
+
+
+@pytest.fixture(autouse=True)
+def _fresh_raid_tracker(monkeypatch):
+    """Give every test a clean raid tracker — the module singleton would leak
+    an activated raid mode from one test into the next."""
+    from core import config, raid
+
+    monkeypatch.setattr(raid, "_tracker", raid.RaidTracker(config.RAID_JOIN_LIMIT, config.RAID_WINDOW, config.RAID_DURATION))

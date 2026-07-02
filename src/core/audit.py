@@ -41,6 +41,8 @@ class AuditEvent(enum.StrEnum):
     MEMBER_JOINED = "member_joined"
     MEMBER_LEFT = "member_left"
     COMPACTION_FORCED = "compaction_forced"
+    RAID_STARTED = "raid_started"
+    RAID_ENDED = "raid_ended"
 
 
 async def record_event(

@@ -20,7 +20,7 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden, TelegramError
 from telegram.ext import ContextTypes
 
-from core import config
+from core import config, raid
 from core.audit import AuditEvent, record_event
 from core.config import CHAT_RULES_URL, logger
 from core.storage import get_storage
@@ -52,10 +52,13 @@ async def start_challenge(chat, user: User) -> None:
 
     await asyncio.to_thread(get_storage().add_mute, chat.id, user.id, None)
 
+    # During a raid the challenge window is halved to shed the bot wave faster.
+    timeout = max(15, config.CAPTCHA_TIMEOUT // 2) if raid.is_raid_active(chat.id) else config.CAPTCHA_TIMEOUT
+
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Я не бот ✅", callback_data=f"captcha:{user.id}")]])
     try:
         message = await chat.send_message(
-            f"{user.mention_html()}, подтверди, что ты не бот — нажми кнопку в течение {config.CAPTCHA_TIMEOUT} сек.",
+            f"{user.mention_html()}, подтверди, что ты не бот — нажми кнопку в течение {timeout} сек.",
             parse_mode=ParseMode.HTML,
             reply_markup=keyboard,
         )
@@ -63,11 +66,11 @@ async def start_challenge(chat, user: User) -> None:
         logger.warning("[WARN] Could not send captcha to %s: %s", user.id, exc)
         return
 
-    deadline = int(time.time()) + config.CAPTCHA_TIMEOUT
+    deadline = int(time.time()) + timeout
     _pending[_key(chat.id, user.id)] = message.message_id
     await asyncio.to_thread(get_storage().add_captcha, chat.id, user.id, message.message_id, deadline)
-    _track(asyncio.create_task(_expire(chat, user.id)))
-    await record_event(chat.id, AuditEvent.CAPTCHA_SHOWN, user_id=user.id, meta={"timeout": config.CAPTCHA_TIMEOUT})
+    _track(asyncio.create_task(_expire(chat, user.id, delay=timeout)))
+    await record_event(chat.id, AuditEvent.CAPTCHA_SHOWN, user_id=user.id, meta={"timeout": timeout})
     logger.info("[INFO] Captcha started for user %s", user.id)
 
 
@@ -89,15 +92,18 @@ async def _punish_if_pending(chat, user_id: int) -> None:
     except BadRequest, Forbidden:
         pass
 
+    # During a raid a failed challenge is always a ban — a kicked bot would
+    # just rejoin and feed the wave.
+    action = "ban" if raid.is_raid_active(chat.id) else config.CAPTCHA_FAIL_ACTION
     try:
         await chat.ban_member(user_id=user_id)
-        if config.CAPTCHA_FAIL_ACTION == "kick":
+        if action == "kick":
             # Kick = ban + unban, so the user may rejoin and try again.
             await chat.unban_member(user_id=user_id)
-        await record_event(chat.id, AuditEvent.CAPTCHA_FAILED, user_id=user_id, meta={"action": config.CAPTCHA_FAIL_ACTION})
+        await record_event(chat.id, AuditEvent.CAPTCHA_FAILED, user_id=user_id, meta={"action": action})
     except (BadRequest, Forbidden) as exc:
         logger.warning("[WARN] Captcha fail-action for %s failed: %s", user_id, exc)
-    logger.info("[INFO] Captcha timed out for user %s (action=%s)", user_id, config.CAPTCHA_FAIL_ACTION)
+    logger.info("[INFO] Captcha timed out for user %s (action=%s)", user_id, action)
 
 
 async def rearm_captchas(application) -> None:

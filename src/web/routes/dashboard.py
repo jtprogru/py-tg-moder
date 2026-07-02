@@ -13,6 +13,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from core import raid
 from core.audit import AuditEvent
 from core.storage import get_storage
 from web.auth import make_csrf, require_admin
@@ -45,6 +46,8 @@ EVENT_LABELS: dict[str, str] = {
     AuditEvent.MEMBER_JOINED: "вступление",
     AuditEvent.MEMBER_LEFT: "выход",
     AuditEvent.COMPACTION_FORCED: "компактинг БД",
+    AuditEvent.RAID_STARTED: "начало рейда",
+    AuditEvent.RAID_ENDED: "конец рейда",
 }
 
 # Events that count as "moderation actions" in the headline tile and breakdown
@@ -169,6 +172,8 @@ async def chat_page(request: Request, chat_id: int, days: int = Query(30), admin
         "chat_id": chat_id,
         "chat_title": await _chat_title(request, chat_id),
         "csrf": make_csrf(admin),
+        "raid_active": raid.is_raid_active(chat_id),
+        "raids_total": audit_totals.get(AuditEvent.RAID_STARTED, 0),
         "days": days,
         "periods": PERIODS,
         "totals": totals,
