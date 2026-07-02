@@ -10,6 +10,16 @@
 </section>
 
 <section class="card">
+  <h2>Экспорт и бэкап</h2>
+  <p class="text-secondary">Всё, что нужно, чтобы пережить перезапуск или передеплой без потерь.</p>
+  <ul class="export-list">
+    <li><a href="/admin/export/backup.sqlite" download>Бэкап БД (.sqlite)</a> — консистентный снапшот всего состояния и истории; при передеплое положи его в <code>DB_PATH</code>.</li>
+    <li><a href="/admin/export/config.yaml" download>config.yaml</a> — текущая конфигурация бота (секретов не содержит).</li>
+    <li><a href="/admin/export/env.json" download>env.json</a> — чек-лист переменных окружения: что задано и что нужно будет задать заново (значения секретов не выгружаются).</li>
+  </ul>
+</section>
+
+<section class="card">
   <h2>Принудительный компактинг</h2>
   <p class="text-secondary">Укажи, сколько последних дней истории оставить — всё старше будет удалено безвозвратно, база сжата. Сначала покажу, что именно удалится.</p>
   <form class="filter-row" hx-post="/admin/compaction/preview" hx-target="#compaction-result">

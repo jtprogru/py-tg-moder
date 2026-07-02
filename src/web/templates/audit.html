@@ -25,4 +25,10 @@
 <div id="audit-table">
   {% include "_audit_table.html" %}
 </div>
+
+<p class="export-row text-secondary">
+  <a href="/chats/{{ chat_id }}/export/audit.csv{% if filter_event or filter_user_id is not none %}?event={{ filter_event }}{% if filter_user_id is not none %}&user_id={{ filter_user_id }}{% endif %}{% endif %}" download>
+    Скачать журнал в CSV (с учётом фильтров)
+  </a>
+</p>
 {% endblock %}
