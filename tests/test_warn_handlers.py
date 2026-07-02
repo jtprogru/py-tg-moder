@@ -182,3 +182,42 @@ def test_unwarn_when_none(store):
     update, command, chat, ctx = _make(target)
     asyncio.run(warns.unwarn_user(update, ctx))
     assert "нет предупреждений" in command.replies[0]
+
+
+# -- audit trail -------------------------------------------------------------
+
+
+def test_warn_records_audit_event(store, audit_store, monkeypatch):
+    monkeypatch.setattr(warns, "WARN_LIMIT", 3)
+    target = FakeUser(42)
+    update, command, chat, ctx = _make(target, args=["спам"])
+    asyncio.run(warns.warn_user(update, ctx))
+    events = audit_store.list_audit_events(chat_id=100)
+    assert [e["event"] for e in events] == ["warn"]
+    assert events[0]["user_id"] == 42
+    assert events[0]["actor_id"] == 5
+    assert events[0]["reason"] == "спам"
+
+
+def test_auto_punish_records_full_audit_trail(store, audit_store, monkeypatch):
+    monkeypatch.setattr(warns, "WARN_LIMIT", 1)
+    monkeypatch.setattr(warns, "WARN_ACTION", "mute")
+    target = FakeUser(42)
+    update, command, chat, ctx = _make(target)
+    asyncio.run(warns.warn_user(update, ctx))
+    # Newest first: the warn itself, then the punishment, then the reset.
+    events = [e["event"] for e in audit_store.list_audit_events(chat_id=100)]
+    assert events == ["warns_cleared", "auto_mute", "warn"]
+    # History survives the reset even though the live counter is back to zero.
+    assert store.count_warns(100, 42) == 0
+    assert len(store.list_warns(100, 42, include_deleted=True)) == 1
+
+
+def test_unwarn_records_audit_event(store, audit_store):
+    store.add_warn(100, 42, now=1700000000)
+    target = FakeUser(42)
+    update, command, chat, ctx = _make(target)
+    asyncio.run(warns.unwarn_user(update, ctx))
+    events = audit_store.list_audit_events(chat_id=100, event="unwarn")
+    assert len(events) == 1
+    assert events[0]["user_id"] == 42

@@ -6,6 +6,7 @@ from telegram import ChatPermissions, Update
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
+from core.audit import AuditEvent, record_event
 from core.config import DELETE_ON_BAN, logger
 from core.duration import format_duration, parse_duration
 from core.storage import get_storage
@@ -174,6 +175,7 @@ async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if not await _apply_action(update, lambda: chat.ban_member(user_id=target.id, until_date=until_ts), f"🔨 Пользователь забанен{suffix}."):
         return
+    await record_event(chat.id, AuditEvent.BAN, user_id=target.id, actor_id=update.effective_user.id, meta={"until": until_ts})
     logger.info(f"[INFO] User with ID {target.id} was banned (until={until_ts})")
 
     # Remove the offending message the ban was issued in reply to.
@@ -195,6 +197,7 @@ async def unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     chat = update.effective_chat
     if not await _apply_action(update, lambda: chat.unban_member(user_id=target.id), "✅ Пользователь разбанен."):
         return
+    await record_event(chat.id, AuditEvent.UNBAN, user_id=target.id, actor_id=update.effective_user.id)
     logger.info(f"[INFO] User with ID {target.id} was unbanned")
 
 
@@ -216,6 +219,7 @@ async def kick_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if not await _apply_action(update, _kick, "👢 Пользователь кикнут."):
         return
+    await record_event(chat.id, AuditEvent.KICK, user_id=target.id, actor_id=update.effective_user.id)
     logger.info(f"[INFO] User with ID {target.id} was kicked")
 
 
@@ -238,6 +242,7 @@ async def mute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Native until_date lifts the mute automatically; we also record it so the
     # state is visible and survives a restart.
     await asyncio.to_thread(get_storage().add_mute, chat.id, target.id, until_ts)
+    await record_event(chat.id, AuditEvent.MUTE, user_id=target.id, actor_id=update.effective_user.id, meta={"until": until_ts})
     logger.info(f"[INFO] User with ID {target.id} was muted (until={until_ts})")
 
 
@@ -252,4 +257,5 @@ async def unmute_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if not await _apply_action(update, lambda: chat.restrict_member(user_id=target.id, permissions=UNMUTE_PERMISSIONS), "🔊 Пользователь размьючен."):
         return
     await asyncio.to_thread(get_storage().remove_mute, chat.id, target.id)
+    await record_event(chat.id, AuditEvent.UNMUTE, user_id=target.id, actor_id=update.effective_user.id)
     logger.info(f"[INFO] User with ID {target.id} was unmuted")

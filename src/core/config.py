@@ -85,6 +85,13 @@ MEDIA_BLOCK_LOCATION: bool = bool(_media.get("block_location", True))
 # volume without touching the image.
 DB_PATH: str = os.getenv("DB_PATH") or str(cfg.get("storage", {}).get("path", "moder.db"))
 
+# History retention: how many days of audit log / soft-deleted warns / message
+# stats to keep, and at which UTC hour the daily purge runs. Env vars win over
+# config.yaml, same as DB_PATH.
+_retention: dict = cfg.get("storage", {}).get("retention", {}) or {}
+RETENTION_DAYS: int = int(os.getenv("RETENTION_DAYS") or _retention.get("days", 365))
+RETENTION_PURGE_HOUR: int = int(os.getenv("RETENTION_PURGE_HOUR") or _retention.get("purge_hour_utc", 4)) % 24
+
 DEBUG: bool = _parse_bool(os.getenv("DEBUG"))
 SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
 

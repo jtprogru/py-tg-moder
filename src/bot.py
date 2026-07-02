@@ -9,6 +9,7 @@ from telegram.ext import Application, CallbackQueryHandler, ChatMemberHandler, C
 
 from core.allowlist import resolve_allowlist, restricted_to_allowed_chats
 from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
+from core.retention import start_retention
 from core.storage import get_storage
 from handlers.admin_handlers import ban_user, kick_user, mute_user, unban_user, unmute_user
 from handlers.captcha import captcha_callback, rearm_captchas
@@ -26,10 +27,12 @@ logger = logging.getLogger(__name__)
 
 
 async def _post_init(application) -> None:
-    """Runtime setup once the bot is ready: resolve the allowlist and rearm
-    any captcha challenges that were pending when the process last stopped."""
+    """Runtime setup once the bot is ready: resolve the allowlist, rearm any
+    captcha challenges that were pending when the process last stopped, and
+    start the daily retention purge."""
     await resolve_allowlist(application)
     await rearm_captchas(application)
+    start_retention(application)
 
 
 def main() -> None:

@@ -15,6 +15,7 @@ from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
 from core import config
+from core.audit import AuditEvent, record_event
 from core.config import logger
 from core.storage import get_storage
 
@@ -77,6 +78,7 @@ async def flood_control(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     storage = get_storage()
     await asyncio.to_thread(storage.add_mute, chat.id, user.id, until_ts)
     await asyncio.to_thread(storage.increment_counter, chat.id, "flood_muted")
+    await record_event(chat.id, AuditEvent.FLOOD_MUTE, user_id=user.id, meta={"seconds": config.FLOOD_MUTE_SECONDS})
     _tracker.reset(key)
 
     logger.info("[INFO] User %s muted for %ss for flooding", user.id, config.FLOOD_MUTE_SECONDS)

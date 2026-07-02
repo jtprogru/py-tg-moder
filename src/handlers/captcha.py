@@ -21,6 +21,7 @@ from telegram.error import BadRequest, Forbidden, TelegramError
 from telegram.ext import ContextTypes
 
 from core import config
+from core.audit import AuditEvent, record_event
 from core.config import CHAT_RULES_URL, logger
 from core.storage import get_storage
 
@@ -66,6 +67,7 @@ async def start_challenge(chat, user: User) -> None:
     _pending[_key(chat.id, user.id)] = message.message_id
     await asyncio.to_thread(get_storage().add_captcha, chat.id, user.id, message.message_id, deadline)
     _track(asyncio.create_task(_expire(chat, user.id)))
+    await record_event(chat.id, AuditEvent.CAPTCHA_SHOWN, user_id=user.id, meta={"timeout": config.CAPTCHA_TIMEOUT})
     logger.info("[INFO] Captcha started for user %s", user.id)
 
 
@@ -92,6 +94,7 @@ async def _punish_if_pending(chat, user_id: int) -> None:
         if config.CAPTCHA_FAIL_ACTION == "kick":
             # Kick = ban + unban, so the user may rejoin and try again.
             await chat.unban_member(user_id=user_id)
+        await record_event(chat.id, AuditEvent.CAPTCHA_FAILED, user_id=user_id, meta={"action": config.CAPTCHA_FAIL_ACTION})
     except (BadRequest, Forbidden) as exc:
         logger.warning("[WARN] Captcha fail-action for %s failed: %s", user_id, exc)
     logger.info("[INFO] Captcha timed out for user %s (action=%s)", user_id, config.CAPTCHA_FAIL_ACTION)
@@ -145,6 +148,7 @@ async def captcha_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     except (BadRequest, Forbidden) as exc:
         logger.warning("[WARN] Could not unmute %s after captcha: %s", target_id, exc)
     await asyncio.to_thread(get_storage().remove_mute, chat.id, target_id)
+    await record_event(chat.id, AuditEvent.CAPTCHA_PASSED, user_id=target_id)
 
     await query.answer("Спасибо! Доступ открыт.")
     if message_id is not None:

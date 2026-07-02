@@ -6,6 +6,7 @@ from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 from telegram.helpers import escape
 
+from core.audit import AuditEvent, record_event
 from core.config import WARN_ACTION, WARN_LIMIT, logger
 from core.storage import get_storage
 
@@ -33,11 +34,13 @@ async def _auto_punish(update: Update, user_id: int) -> str:
     try:
         if WARN_ACTION == "ban":
             await chat.ban_member(user_id=user_id)
+            await record_event(chat.id, AuditEvent.AUTO_BAN, user_id=user_id, meta={"trigger": "warn_limit"})
             logger.info(f"[INFO] User {user_id} auto-banned after reaching warn limit")
             return "забанен"
         await chat.restrict_member(user_id=user_id, permissions=MUTE_PERMISSIONS)
         # Persist the mute so its state survives a restart.
         await asyncio.to_thread(get_storage().add_mute, chat.id, user_id, None)
+        await record_event(chat.id, AuditEvent.AUTO_MUTE, user_id=user_id, meta={"trigger": "warn_limit"})
         logger.info(f"[INFO] User {user_id} auto-muted after reaching warn limit")
         return "замьючен"
     except (BadRequest, Forbidden) as exc:
@@ -59,13 +62,15 @@ async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     storage = get_storage()
     await asyncio.to_thread(storage.add_warn, chat.id, target.id, moderator.id, reason)
     count = await asyncio.to_thread(storage.count_warns, chat.id, target.id)
+    await record_event(chat.id, AuditEvent.WARN, user_id=target.id, actor_id=moderator.id, reason=reason, meta={"count": count})
 
     text = f"⚠️ {target.mention_html()} предупреждён ({count}/{WARN_LIMIT}).\nПричина: {escape(reason) if reason else '—'}"
 
     if count >= WARN_LIMIT:
         outcome = await _auto_punish(update, target.id)
-        # Reset the counter so the next cycle starts clean.
+        # Reset the counter so the next cycle starts clean (soft-delete keeps history).
         await asyncio.to_thread(storage.clear_warns, chat.id, target.id)
+        await record_event(chat.id, AuditEvent.WARNS_CLEARED, user_id=target.id, meta={"trigger": "auto_punish", "count": count})
         text += f"\n\nДостигнут лимит предупреждений — пользователь {outcome}. Счётчик сброшен."
 
     await update.effective_message.reply_html(text)
@@ -109,5 +114,6 @@ async def unwarn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     count = await asyncio.to_thread(storage.count_warns, chat.id, target.id)
+    await record_event(chat.id, AuditEvent.UNWARN, user_id=target.id, actor_id=update.effective_user.id, meta={"count": count})
     await update.effective_message.reply_html(f"С {target.mention_html()} снято последнее предупреждение. Осталось: {count}/{WARN_LIMIT}.")
     await _delete_command(update)

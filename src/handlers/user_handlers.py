@@ -6,6 +6,7 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from core import config
+from core.audit import AuditEvent, record_event
 from core.cas import casapi
 from core.config import CHAT_RULES_URL
 from core.storage import get_storage
@@ -33,6 +34,7 @@ async def greet_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # cache the joiner's @username so they can be targeted by name later.
         await asyncio.to_thread(storage.record_member, update.effective_chat.id, user_id)
         await asyncio.to_thread(storage.remember_user, user_id, new_user.username)
+        await record_event(update.effective_chat.id, AuditEvent.MEMBER_JOINED, user_id=user_id)
         check = await asyncio.to_thread(casapi.check, user_id=user_id)
         logger.debug(f"[DEBUG] User with ID {user_id} was checked")
         # CAS returns ok=True when the user is listed as a spammer,
@@ -41,6 +43,7 @@ async def greet_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # CAS hit -> ban outright, skipping the captcha.
             logger.info(f"[INFO] User with ID {user_id} found in CAS, was banned")
             await update.effective_chat.ban_member(user_id=user_id)
+            await record_event(update.effective_chat.id, AuditEvent.CAS_BAN, user_id=user_id)
         elif config.CAPTCHA_ENABLED:
             # Make the newcomer pass the captcha before they can write or be greeted.
             await start_challenge(update.effective_chat, new_user)
@@ -51,4 +54,6 @@ async def greet_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
     elif was_member and not is_member:
-        logger.debug(f"[INFO] User with ID {update.chat_member.new_chat_member.user.id} was leave")
+        left_user_id = update.chat_member.new_chat_member.user.id
+        await record_event(update.effective_chat.id, AuditEvent.MEMBER_LEFT, user_id=left_user_id)
+        logger.debug(f"[INFO] User with ID {left_user_id} was leave")
