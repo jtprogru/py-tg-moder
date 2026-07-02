@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ user_name }} — {{ chat_title }} — py-tg-moder{% endblock %}
+{% block nav %}
+<a class="nav-link" href="/chats/{{ chat_id }}">Аналитика</a>
+<a class="nav-link" href="/chats/{{ chat_id }}/audit">Журнал действий</a>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ user_name }} <span class="text-secondary">в {{ chat_title }}</span></h1>
+  <nav class="period-filter" aria-label="Период">
+    {% for period in periods %}
+      <a class="period{% if period == days %} period-active{% endif %}" href="/chats/{{ chat_id }}/users/{{ user_id }}?days={{ period }}">{{ period }} дн</a>
+    {% endfor %}
+  </nav>
+</div>
+
+<p class="export-row text-secondary">id <code>{{ user_id }}</code>{% if member %} · впервые виден {{ member.first_seen | ts }} UTC · последний раз {{ member.last_seen | ts }} UTC{% else %} · в списке участников не встречался{% endif %}</p>
+
+<div class="tile-row" role="list">
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{{ messages_period }}</span>
+    <span class="tile-label">сообщений за {{ days }} дн</span>
+  </div>
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{{ member.message_count if member else "—" }}</span>
+    <span class="tile-label">сообщений всего</span>
+  </div>
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{{ active_warns }}<span class="tile-sub">/ {{ warns | length }}</span></span>
+    <span class="tile-label">варнов активных / всего</span>
+  </div>
+  <div class="tile card{% if mute_active %} tile-alert{% endif %}" role="listitem">
+    <span class="tile-value">{% if mute_active %}🔇 замьючен{% else %}нет{% endif %}</span>
+    <span class="tile-label">{% if mute_active %}{% if mute.until %}до {{ mute.until | ts }} UTC{% else %}бессрочно{% endif %}{% else %}активный мьют{% endif %}</span>
+  </div>
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{{ events_total }}</span>
+    <span class="tile-label">записей в журнале</span>
+  </div>
+</div>
+
+<section class="card">
+  <h2>Сообщения {{ granularity_label }}</h2>
+  <div class="chart-box"><canvas id="chart-messages" role="img" aria-label="Сообщения пользователя {{ granularity_label }}"></canvas></div>
+  <details class="chart-table">
+    <summary>Данные таблицей</summary>
+    <table>
+      <thead><tr><th>{{ bucket_column }}</th><th class="num">Сообщений</th></tr></thead>
+      <tbody>
+        {% for day in charts.days %}<tr><td>{{ day }}</td><td class="num">{{ charts.messages[loop.index0] }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </details>
+</section>
+
+<section class="card">
+  <h2>Выполнить действие</h2>
+  <form class="filter-row" hx-post="/chats/{{ chat_id }}/actions" hx-target="#action-result">
+    <label>Действие
+      <select name="action">
+        <option value="ban">Забанить</option>
+        <option value="unban">Разбанить</option>
+        <option value="kick">Кикнуть</option>
+        <option value="mute">Замьютить</option>
+        <option value="unmute">Размьютить</option>
+      </select>
+    </label>
+    <label>Срок (30m / 1h / 1d, пусто — навсегда)
+      <input type="text" name="duration" placeholder="">
+    </label>
+    <label>Причина
+      <input type="text" name="reason" placeholder="спам">
+    </label>
+    <input type="hidden" name="target" value="{{ user_id }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit">Выполнить</button>
+  </form>
+  <div id="action-result"></div>
+  <p class="text-secondary form-hint">Действие применится к {{ user_name }}, уйдёт в Telegram от имени бота и запишется в журнал с твоим id и причиной.</p>
+</section>
+
+<div class="two-col">
+  <section class="card">
+    <h2>Предупреждения</h2>
+    {% if warns %}
+    <table>
+      <thead><tr><th>Когда (UTC)</th><th>Причина</th><th>Модератор</th><th>Статус</th></tr></thead>
+      <tbody>
+        {% for w in warns %}
+        <tr>
+          <td class="num">{{ w.created_at | ts }}</td>
+          <td>{{ w.reason or "—" }}</td>
+          <td>{% if w.moderator_id %}{{ names.get(w.moderator_id, w.moderator_id) }}{% else %}<span class="text-secondary">бот</span>{% endif %}</td>
+          <td>{% if w.deleted_at is none %}<span class="event-badge">активен</span>{% else %}<span class="text-secondary">снят {{ w.deleted_at | ts }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-secondary">Предупреждений не было.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Последние события</h2>
+    {% if events %}
+    <table>
+      <thead><tr><th>Когда (UTC)</th><th>Событие</th><th>Кто</th><th>Причина</th></tr></thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td class="num">{{ e.created_at | ts }}</td>
+          <td><span class="event-badge">{{ event_labels.get(e.event, e.event) }}</span></td>
+          <td>{% if e.actor_id %}{{ names.get(e.actor_id, e.actor_id) }}{% else %}<span class="text-secondary">бот</span>{% endif %}</td>
+          <td>{{ e.reason or "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if events_total > events | length %}
+    <p><a href="/chats/{{ chat_id }}/audit?user_id={{ user_id }}">Все {{ events_total }} записей в журнале →</a></p>
+    {% endif %}
+    {% else %}
+    <p class="text-secondary">Событий по пользователю нет.</p>
+    {% endif %}
+  </section>
+</div>
+
+<script id="chart-data" type="application/json">{{ charts|tojson }}</script>
+<script src="/static/chart.umd.min.js"></script>
+<script src="/static/charts.js"></script>
+{% endblock %}

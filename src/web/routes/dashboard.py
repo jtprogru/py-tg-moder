@@ -7,7 +7,7 @@ queries go through ``asyncio.to_thread`` — same as the bot handlers.
 
 import asyncio
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -22,7 +22,11 @@ from web.templating import templates
 router = APIRouter(dependencies=[Depends(require_admin)])
 
 # Time ranges offered by the period filter, in days.
-PERIODS = (7, 30, 90)
+PERIODS = (7, 30, 90, 180, 365)
+
+# Long ranges are charted in coarser buckets so the x-axis stays readable.
+_GRANULARITY_LABELS = {"day": "по дням", "week": "по неделям", "month": "по месяцам"}
+_BUCKET_COLUMNS = {"day": "День", "week": "Неделя (с)", "month": "Месяц"}
 
 # Russian display names for audit events (also the audit-browser filter list).
 EVENT_LABELS: dict[str, str] = {
@@ -82,6 +86,38 @@ def _series_over(day_range: list[str], rows: list[dict], key: str = "count") -> 
     """Align sparse per-day rows to a continuous day range (missing days = 0)."""
     by_day = {row["day"]: row[key] for row in rows}
     return [by_day.get(day, 0) for day in day_range]
+
+
+def _granularity(days: int) -> str:
+    return "day" if days <= 31 else "week" if days <= 180 else "month"
+
+
+def _bucketize(day_range: list[str], series: dict[str, list[int]], granularity: str) -> tuple[list[str], dict[str, list[int]]]:
+    """Sum per-day series into week/month buckets for long periods.
+
+    Weekly buckets are labeled by their Monday, monthly by YYYY-MM; the edge
+    buckets may cover fewer days than a full week/month.
+    """
+    if granularity == "day":
+        return day_range, series
+    labels: list[str] = []
+    index: dict[str, int] = {}
+    positions: list[int] = []
+    for day in day_range:
+        if granularity == "week":
+            d = date.fromisoformat(day)
+            key = (d - timedelta(days=d.weekday())).isoformat()
+        else:
+            key = day[:7]
+        if key not in index:
+            index[key] = len(labels)
+            labels.append(key)
+        positions.append(index[key])
+    bucketed = {name: [0] * len(labels) for name in series}
+    for name, values in series.items():
+        for position, value in zip(positions, values):
+            bucketed[name][position] += value
+    return labels, bucketed
 
 
 async def _chat_title(request: Request, chat_id: int) -> str:
@@ -168,6 +204,13 @@ async def chat_page(request: Request, chat_id: int, days: int = Query(30), admin
         reverse=True,
     )
 
+    granularity = _granularity(days)
+    labels, bucketed = _bucketize(
+        day_range,
+        {"messages": _series_over(day_range, message_rows), "joins": joins, "leaves": leaves},
+        granularity,
+    )
+
     names = await asyncio.to_thread(_display_names, storage, [row["user_id"] for row in top_posters + top_warned])
     context = {
         "chat_id": chat_id,
@@ -186,15 +229,69 @@ async def chat_page(request: Request, chat_id: int, days: int = Query(30), admin
         "actions_total": sum(item["count"] for item in actions),
         "top_posters": [{**row, "name": names[row["user_id"]]} for row in top_posters],
         "top_warned": [{**row, "name": names[row["user_id"]]} for row in top_warned],
+        "granularity_label": _GRANULARITY_LABELS[granularity],
+        "bucket_column": _BUCKET_COLUMNS[granularity],
         "charts": {
-            "days": day_range,
-            "messages": _series_over(day_range, message_rows),
-            "joins": joins,
-            "leaves": leaves,
+            "days": labels,
+            "messages": bucketed["messages"],
+            "joins": bucketed["joins"],
+            "leaves": bucketed["leaves"],
             "actions": {"labels": [a["label"] for a in actions], "counts": [a["count"] for a in actions]},
         },
     }
     return templates.TemplateResponse(request, "chat.html", context)
+
+
+@router.get("/chats/{chat_id}/users/{user_id}", response_class=HTMLResponse)
+async def user_page(
+    request: Request,
+    chat_id: int,
+    user_id: int,
+    days: int = Query(30),
+    admin: int = Depends(require_admin),
+) -> Response:
+    """One user's history in a chat: activity, warns, mute state, audit trail."""
+    storage = get_storage()
+    days = _clamp_period(days)
+    now = int(time.time())
+    day_range = _day_range(days, now)
+
+    member = await asyncio.to_thread(storage.get_member, chat_id, user_id)
+    warns = list(reversed(await asyncio.to_thread(storage.list_warns, chat_id, user_id, True)))  # newest first
+    mute = await asyncio.to_thread(storage.get_mute, chat_id, user_id)
+    message_rows = await asyncio.to_thread(storage.user_message_series, chat_id, user_id, day_range[0])
+    events = await asyncio.to_thread(storage.list_audit_events, chat_id, None, user_id, None, None, 25, 0)
+    events_total = await asyncio.to_thread(storage.count_audit_events, chat_id, None, user_id)
+
+    ids = {user_id} | {w["moderator_id"] for w in warns if w["moderator_id"]} | {e["actor_id"] for e in events if e["actor_id"]}
+    names = await asyncio.to_thread(_display_names, storage, list(ids))
+
+    granularity = _granularity(days)
+    labels, bucketed = _bucketize(day_range, {"messages": _series_over(day_range, message_rows)}, granularity)
+
+    context = {
+        "chat_id": chat_id,
+        "chat_title": await _chat_title(request, chat_id),
+        "user_id": user_id,
+        "user_name": names[user_id],
+        "csrf": make_csrf(admin),
+        "days": days,
+        "periods": PERIODS,
+        "member": member,
+        "warns": warns,
+        "active_warns": sum(1 for w in warns if w["deleted_at"] is None),
+        "mute": mute,
+        "mute_active": bool(mute) and (mute["until"] is None or mute["until"] > now),
+        "messages_period": sum(row["count"] for row in message_rows),
+        "events": events,
+        "events_total": events_total,
+        "names": names,
+        "event_labels": EVENT_LABELS,
+        "granularity_label": _GRANULARITY_LABELS[granularity],
+        "bucket_column": _BUCKET_COLUMNS[granularity],
+        "charts": {"days": labels, "messages": bucketed["messages"]},
+    }
+    return templates.TemplateResponse(request, "user.html", context)
 
 
 @router.get("/chats/{chat_id}/audit", response_class=HTMLResponse)
@@ -204,6 +301,7 @@ async def audit_page(
     event: Optional[str] = Query(None),
     user_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
+    admin: int = Depends(require_admin),
 ) -> Response:
     """Filterable, paginated audit-log browser (htmx swaps the table in place)."""
     storage = get_storage()
@@ -219,6 +317,7 @@ async def audit_page(
     context = {
         "chat_id": chat_id,
         "chat_title": await _chat_title(request, chat_id),
+        "csrf": make_csrf(admin),
         "events": events,
         "names": names,
         "event_labels": EVENT_LABELS,

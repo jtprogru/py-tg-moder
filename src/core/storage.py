@@ -296,6 +296,15 @@ class Storage:
             self._conn.commit()
         return cur.rowcount > 0
 
+    def get_mute(self, chat_id: int, user_id: int) -> Optional[dict]:
+        """The raw mute row for a user (possibly already expired), or None."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT until, created_at FROM mutes WHERE chat_id = ? AND user_id = ?",
+                (chat_id, user_id),
+            ).fetchone()
+        return dict(row) if row else None
+
     def is_muted(self, chat_id: int, user_id: int, now: Optional[int] = None) -> bool:
         with self._lock:
             row = self._conn.execute(
@@ -484,6 +493,15 @@ class Storage:
             rows = self._conn.execute(
                 "SELECT day, SUM(count) AS count FROM message_stats WHERE chat_id = ? AND day >= ? GROUP BY day ORDER BY day",
                 (chat_id, since_day),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def user_message_series(self, chat_id: int, user_id: int, since_day: str) -> list[dict]:
+        """Daily message counts of one user in a chat since a UTC day, oldest first."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT day, count FROM message_stats WHERE chat_id = ? AND user_id = ? AND day >= ? ORDER BY day",
+                (chat_id, user_id, since_day),
             ).fetchall()
         return [dict(r) for r in rows]
 

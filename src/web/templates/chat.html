@@ -49,12 +49,12 @@
 </div>
 
 <section class="card">
-  <h2>Сообщения по дням</h2>
-  <div class="chart-box"><canvas id="chart-messages" role="img" aria-label="Сообщения по дням"></canvas></div>
+  <h2>Сообщения {{ granularity_label }}</h2>
+  <div class="chart-box"><canvas id="chart-messages" role="img" aria-label="Сообщения {{ granularity_label }}"></canvas></div>
   <details class="chart-table">
     <summary>Данные таблицей</summary>
     <table>
-      <thead><tr><th>День</th><th class="num">Сообщений</th></tr></thead>
+      <thead><tr><th>{{ bucket_column }}</th><th class="num">Сообщений</th></tr></thead>
       <tbody>
         {% for day in charts.days %}<tr><td>{{ day }}</td><td class="num">{{ charts.messages[loop.index0] }}</td></tr>{% endfor %}
       </tbody>
@@ -63,12 +63,12 @@
 </section>
 
 <section class="card">
-  <h2>Вступления и выходы</h2>
-  <div class="chart-box"><canvas id="chart-members" role="img" aria-label="Вступления и выходы по дням"></canvas></div>
+  <h2>Вступления и выходы {{ granularity_label }}</h2>
+  <div class="chart-box"><canvas id="chart-members" role="img" aria-label="Вступления и выходы {{ granularity_label }}"></canvas></div>
   <details class="chart-table">
     <summary>Данные таблицей</summary>
     <table>
-      <thead><tr><th>День</th><th class="num">Вступления</th><th class="num">Выходы</th></tr></thead>
+      <thead><tr><th>{{ bucket_column }}</th><th class="num">Вступления</th><th class="num">Выходы</th></tr></thead>
       <tbody>
         {% for day in charts.days %}<tr><td>{{ day }}</td><td class="num">{{ charts.joins[loop.index0] }}</td><td class="num">{{ charts.leaves[loop.index0] }}</td></tr>{% endfor %}
       </tbody>
@@ -130,7 +130,7 @@
         <tbody>
           {% for poster in top_posters %}
           <tr>
-            <td>{{ poster.name }}</td>
+            <td><a href="/chats/{{ chat_id }}/users/{{ poster.user_id }}">{{ poster.name }}</a></td>
             <td class="num">{{ poster.count }}</td>
           </tr>
           {% endfor %}
@@ -147,7 +147,16 @@
         <tbody>
           {% for warned in top_warned %}
           <tr>
-            <td>{{ warned.name }}</td>
+            <td><a href="/chats/{{ chat_id }}/users/{{ warned.user_id }}">{{ warned.name }}</a>
+              <span class="row-actions">
+                <button hx-post="/chats/{{ chat_id }}/actions" hx-target="#action-result"
+                        hx-vals='{"action": "mute", "duration": "1h", "target": "{{ warned.user_id }}", "csrf": "{{ csrf }}"}'
+                        hx-confirm="Замьютить {{ warned.name }} на час?" title="Замьютить на час">🔇 1ч</button>
+                <button hx-post="/chats/{{ chat_id }}/actions" hx-target="#action-result"
+                        hx-vals='{"action": "ban", "target": "{{ warned.user_id }}", "csrf": "{{ csrf }}"}'
+                        hx-confirm="Забанить {{ warned.name }} навсегда?" title="Забанить">🔨</button>
+              </span>
+            </td>
             <td class="num"><a href="/chats/{{ chat_id }}/audit?user_id={{ warned.user_id }}">{{ warned.count }}</a></td>
           </tr>
           {% endfor %}
