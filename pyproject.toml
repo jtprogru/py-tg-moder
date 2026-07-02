@@ -1,6 +1,6 @@
 [project]
 name = "py-tg-moder"
-version = "0.2.0"
+version = "0.5.0"
 description = "Simple bot for moderate my chat"
 authors = [{ name = "Mikhail Savin", email = "jtprogru@gmail.com" }]
 license = "MIT"
