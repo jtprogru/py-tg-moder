@@ -5,7 +5,7 @@ from telegram import LinkPreviewOptions, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from core import config
+from core import config, raid
 from core.audit import AuditEvent, record_event
 from core.cas import casapi
 from core.config import CHAT_RULES_URL
@@ -35,6 +35,8 @@ async def greet_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await asyncio.to_thread(storage.record_member, update.effective_chat.id, user_id)
         await asyncio.to_thread(storage.remember_user, user_id, new_user.username)
         await record_event(update.effective_chat.id, AuditEvent.MEMBER_JOINED, user_id=user_id)
+        # A join spike flips the chat into raid mode (hardens captcha/filters).
+        await raid.note_join(update.effective_chat)
         check = await asyncio.to_thread(casapi.check, user_id=user_id)
         logger.debug(f"[DEBUG] User with ID {user_id} was checked")
         # CAS returns ok=True when the user is listed as a spammer,

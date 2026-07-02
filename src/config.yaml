@@ -34,6 +34,15 @@ moderation:
     enabled: true
     timeout_seconds: 60
     fail_action: kick
+  # Anti-raid: more than `join_limit` joins within `window_seconds` hardens
+  # moderation for `duration_seconds` (extended while the spike continues):
+  # captcha timeout is halved and its fail action becomes ban; newcomer
+  # violations escalate from delete to mute.
+  raid:
+    enabled: true
+    join_limit: 10
+    window_seconds: 60
+    duration_seconds: 600
   # Delete disallowed media types from non-admins; optionally notify the author
   # with a notice that self-deletes after notify_ttl_seconds.
   media:

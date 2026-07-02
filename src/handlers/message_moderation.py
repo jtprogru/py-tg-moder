@@ -13,7 +13,7 @@ from telegram import Message, MessageEntity, Update
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
-from core import config
+from core import config, raid
 from core.audit import AuditEvent, record_event
 from core.config import logger
 from core.storage import get_storage
@@ -61,15 +61,22 @@ async def _enforce(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: 
         logger.debug("[DEBUG] Could not delete newcomer message: %s", exc)
 
     await asyncio.to_thread(storage.increment_counter, chat.id, "newcomer_filtered")
-    await record_event(chat.id, AuditEvent.NEWCOMER_FILTERED, user_id=user_id, reason=reason, meta={"action": config.NEWCOMER_ACTION})
 
-    if config.NEWCOMER_ACTION == "mute":
+    # During a raid a plain delete is not enough — escalate to mute so the
+    # spammer can't keep posting variations for the rest of the wave.
+    action = "mute" if raid.is_raid_active(chat.id) and config.NEWCOMER_ACTION == "delete" else config.NEWCOMER_ACTION
+    meta = {"action": action}
+    if action != config.NEWCOMER_ACTION:
+        meta["raid"] = True
+    await record_event(chat.id, AuditEvent.NEWCOMER_FILTERED, user_id=user_id, reason=reason, meta=meta)
+
+    if action == "mute":
         try:
             await chat.restrict_member(user_id=user_id, permissions=MUTE_PERMISSIONS)
             await asyncio.to_thread(storage.add_mute, chat.id, user_id, None)
         except (BadRequest, Forbidden) as exc:
             logger.warning("[WARN] Could not mute newcomer %s: %s", user_id, exc)
-    elif config.NEWCOMER_ACTION == "warn":
+    elif action == "warn":
         await asyncio.to_thread(storage.add_warn, chat.id, user_id, context.bot.id, f"авто: {reason}")
         count = await asyncio.to_thread(storage.count_warns, chat.id, user_id)
         await record_event(chat.id, AuditEvent.WARN, user_id=user_id, actor_id=context.bot.id, reason=f"авто: {reason}", meta={"count": count})
@@ -78,7 +85,7 @@ async def _enforce(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: 
             await asyncio.to_thread(storage.clear_warns, chat.id, user_id)
             await record_event(chat.id, AuditEvent.WARNS_CLEARED, user_id=user_id, meta={"trigger": "auto_punish", "count": count})
 
-    logger.info("[INFO] Newcomer %s message filtered (%s, action=%s)", user_id, reason, config.NEWCOMER_ACTION)
+    logger.info("[INFO] Newcomer %s message filtered (%s, action=%s)", user_id, reason, action)
 
 
 async def moderate_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

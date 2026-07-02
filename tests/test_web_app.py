@@ -124,6 +124,18 @@ def test_chat_page_clamps_unknown_period(admin_client, audit_store):
     assert response.status_code == 200
 
 
+def test_chat_page_raid_tile(admin_client, audit_store, monkeypatch):
+    from core import raid
+
+    _seed(audit_store)
+    response = admin_client.get("/chats/100")
+    assert "спокойно" in response.text
+
+    monkeypatch.setattr(raid, "is_raid_active", lambda chat_id: True)
+    response = admin_client.get("/chats/100")
+    assert "активен" in response.text
+
+
 def test_audit_page_lists_events_with_reasons(admin_client, audit_store):
     _seed(audit_store)
     response = admin_client.get("/chats/100/audit")
