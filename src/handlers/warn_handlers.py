@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from telegram import Update
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
+from telegram.helpers import escape
 
 from core.config import WARN_ACTION, WARN_LIMIT, logger
 from core.storage import get_storage
@@ -59,7 +60,7 @@ async def warn_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await asyncio.to_thread(storage.add_warn, chat.id, target.id, moderator.id, reason)
     count = await asyncio.to_thread(storage.count_warns, chat.id, target.id)
 
-    text = f"⚠️ {target.mention_html()} предупреждён ({count}/{WARN_LIMIT}).\nПричина: {reason or '—'}"
+    text = f"⚠️ {target.mention_html()} предупреждён ({count}/{WARN_LIMIT}).\nПричина: {escape(reason) if reason else '—'}"
 
     if count >= WARN_LIMIT:
         outcome = await _auto_punish(update, target.id)
@@ -87,7 +88,7 @@ async def warns_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     lines = [f"Предупреждения {target.mention_html()} — {len(warns)}/{WARN_LIMIT}:"]
     for i, warn in enumerate(warns, start=1):
-        reason = warn["reason"] or "—"
+        reason = escape(warn["reason"]) if warn["reason"] else "—"
         lines.append(f"{i}. {_format_date(warn['created_at'])} — {reason}")
     await update.effective_message.reply_html("\n".join(lines))
 

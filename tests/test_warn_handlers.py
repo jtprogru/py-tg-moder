@@ -143,6 +143,29 @@ def test_warns_list_empty(store):
     assert "нет предупреждений" in command.replies[0]
 
 
+def test_warn_reason_html_is_escaped(store, monkeypatch):
+    # The reason is admin-provided and rendered into an HTML message; any markup
+    # in it must be escaped so it can't inject formatting/links into the reply.
+    monkeypatch.setattr(warns, "WARN_LIMIT", 3)
+    target = FakeUser(42)
+    update, command, chat, ctx = _make(target, args=["<b>evil</b>"])
+    asyncio.run(warns.warn_user(update, ctx))
+    out = "\n".join(command.replies)
+    assert "&lt;b&gt;evil&lt;/b&gt;" in out
+    assert "<b>evil</b>" not in out
+
+
+def test_warns_list_reason_html_is_escaped(store):
+    # Stored reasons are echoed back into an HTML message and must be escaped too.
+    store.add_warn(100, 42, moderator_id=5, reason="<i>x</i>", now=1700000000)
+    target = FakeUser(42)
+    update, command, chat, ctx = _make(target)
+    asyncio.run(warns.warns_list(update, ctx))
+    out = command.replies[0]
+    assert "&lt;i&gt;x&lt;/i&gt;" in out
+    assert "<i>x</i>" not in out
+
+
 def test_unwarn_removes_last(store):
     store.add_warn(100, 42, now=1700000000)
     store.add_warn(100, 42, now=1700100000)
