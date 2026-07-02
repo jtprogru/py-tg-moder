@@ -1,41 +1,39 @@
 name: Deploy
 
+# Manual deploy: there is no self-hosted runner wired to the cluster right
+# now, so this workflow no longer fires automatically on release. Trigger it
+# by hand from the Actions tab once the image for a tag is published.
 "on":
-  release:
-    types:
-      - created
-
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (git tag / pyproject version, e.g. 0.2.0)"
+        required: true
+        default: "latest"
 
 env:
   REGISTRY: ghcr.io
-
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  docker-pull-latest-image:
-
-    runs-on: self-hosted
-    # runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
+  deploy:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
 
-      - name: Clean docker artifacts
+      - name: Configure kubeconfig
         run: |
-          docker system prune -af
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
 
       - name: Deploy new version
         run: |
-          echo "Apply new version with tag 'latest'"
           kubectl apply -f .k8s/deployment.yaml
-
+          kubectl set image deployment/py-tg-moder \
+            py-tg-moder="${REGISTRY}/${IMAGE_NAME}:${{ github.event.inputs.image_tag }}"
+          kubectl rollout status deployment/py-tg-moder --timeout=120s
