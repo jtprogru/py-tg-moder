@@ -27,8 +27,8 @@ build-img: src/.env ## Build and tag the Docker image
 	docker build . --tag ghcr.io/jtprogru/py-tg-moder:$V
 	docker tag ghcr.io/jtprogru/py-tg-moder:$V ghcr.io/jtprogru/py-tg-moder:latest
 
-pytest: clean ## Run the test suite
-	uv run pytest
+pytest: clean ## Run the test suite with coverage gate
+	uv run pytest --cov=src --cov-report=term --cov-fail-under=85
 
 fmt: ## Format and auto-fix code with ruff
 	uv run ruff format src/ tests/
