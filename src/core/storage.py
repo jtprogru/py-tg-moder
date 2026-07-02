@@ -562,6 +562,58 @@ class Storage:
             ).fetchall()
         return {r["user_id"]: r["username"] for r in rows}
 
+    # -- exports -------------------------------------------------------------------
+
+    def export_audit(self, chat_id: int, event: Optional[str] = None, user_id: Optional[int] = None) -> list[dict]:
+        """Every audit row for a chat (optionally filtered), oldest first — for CSV."""
+        clauses = ["chat_id = ?"]
+        params: list = [chat_id]
+        if event is not None:
+            clauses.append("event = ?")
+            params.append(event)
+        if user_id is not None:
+            clauses.append("user_id = ?")
+            params.append(user_id)
+        with self._lock:
+            rows = self._conn.execute(
+                f"SELECT id, chat_id, user_id, actor_id, event, reason, meta, created_at FROM audit_log WHERE {' AND '.join(clauses)} ORDER BY id",
+                params,
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def export_message_stats(self, chat_id: int) -> list[dict]:
+        """Every per-day message row for a chat with the cached @username, oldest first."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT s.day, s.user_id, MAX(u.username) AS username, s.count "
+                "FROM message_stats s LEFT JOIN usernames u ON u.user_id = s.user_id "
+                "WHERE s.chat_id = ? GROUP BY s.day, s.user_id ORDER BY s.day, s.user_id",
+                (chat_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def export_members(self, chat_id: int) -> list[dict]:
+        """Every known member with activity numbers and active warn count."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT m.user_id, MAX(u.username) AS username, m.first_seen, m.last_seen, m.message_count, "
+                "(SELECT COUNT(*) FROM warns w WHERE w.chat_id = m.chat_id AND w.user_id = m.user_id AND w.deleted_at IS NULL) AS active_warns "
+                "FROM members m LEFT JOIN usernames u ON u.user_id = m.user_id "
+                "WHERE m.chat_id = ? GROUP BY m.user_id ORDER BY m.message_count DESC, m.user_id",
+                (chat_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def backup_to(self, dest_path: str) -> None:
+        """Write a consistent, compacted snapshot of the database to ``dest_path``.
+
+        ``VACUUM INTO`` takes a transactional snapshot, so it is safe while the
+        bot keeps writing (WAL). The destination must not exist yet.
+        """
+        with self._lock:
+            self._conn.commit()
+            self._conn.execute("VACUUM INTO ?", (dest_path,))
+
     # -- username -> id cache --------------------------------------------------
 
     def remember_user(self, user_id: int, username: Optional[str]) -> None:

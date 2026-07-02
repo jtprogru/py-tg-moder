@@ -11,6 +11,12 @@
   </nav>
 </div>
 
+<p class="export-row text-secondary">Экспорт CSV:
+  <a href="/chats/{{ chat_id }}/export/audit.csv" download>журнал действий</a> ·
+  <a href="/chats/{{ chat_id }}/export/messages.csv" download>сообщения по дням</a> ·
+  <a href="/chats/{{ chat_id }}/export/members.csv" download>участники</a>
+</p>
+
 <div class="tile-row" role="list">
   <div class="tile card" role="listitem">
     <span class="tile-value">{{ totals.members }}</span>
