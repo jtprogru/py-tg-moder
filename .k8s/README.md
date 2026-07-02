@@ -72,6 +72,10 @@ kubectl create secret docker-registry ghcrio-auth-secret \
 
 Liveness/readiness-пробы ходят в `GET /healthz` — эндпоинт не требует аутентификации.
 
+## Автобэкапы
+
+В `deployment.yaml` включены ежедневные снапшоты БД (`BACKUP_ENABLED=true`) в `/data/backups` — на тот же PVC, что и сама база, с ротацией (по умолчанию хранятся последние 14). Чтобы дополнительно выгружать снапшоты в S3-совместимое хранилище, добавь в под env-переменные `S3_ENDPOINT`, `S3_BUCKET` (можно и `S3_REGION`/`S3_PREFIX`), а креды `S3_ACCESS_KEY`/`S3_SECRET_KEY` — через секрет.
+
 ## Разворачиваем бота
 
 Чтобы развернуть бота в K8s достаточно выполнить это:

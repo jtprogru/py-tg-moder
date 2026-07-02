@@ -20,6 +20,31 @@
 </section>
 
 <section class="card">
+  <h2>Автобэкапы</h2>
+  {% if backup_enabled %}
+  <p>Снапшот всей БД создаётся ежедневно в {{ backup_hour }}:00 UTC в каталоге <code>{{ backup_dir }}</code>, хранятся последние <strong>{{ backup_keep }}</strong>.
+  {% if s3_configured %}Каждый снапшот дополнительно выгружается в S3-совместимое хранилище (с той же ротацией).{% endif %}</p>
+  {% else %}
+  <p class="text-secondary">Автобэкапы выключены — включи <code>storage.backup.enabled</code> в config.yaml или <code>BACKUP_ENABLED=true</code>. Кнопка ниже всё равно создаст снапшот в <code>{{ backup_dir }}</code>.</p>
+  {% endif %}
+  <form class="filter-row" hx-post="/admin/backup" hx-target="#backup-result">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit">Сделать бэкап сейчас</button>
+  </form>
+  <div id="backup-result"></div>
+  {% if backups %}
+  <table>
+    <thead><tr><th>Файл</th><th>Создан</th><th class="num">Размер, МБ</th></tr></thead>
+    <tbody>
+      {% for b in backups %}
+      <tr><td><code>{{ b.name }}</code></td><td>{{ b.when }}</td><td class="num">{{ b.size_mb }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+
+<section class="card">
   <h2>Принудительный компактинг</h2>
   <p class="text-secondary">Укажи, сколько последних дней истории оставить — всё старше будет удалено безвозвратно, база сжата. Сначала покажу, что именно удалится.</p>
   <form class="filter-row" hx-post="/admin/compaction/preview" hx-target="#compaction-result">

@@ -77,4 +77,19 @@ storage:
   retention:
     days: 365          # env RETENTION_DAYS wins
     purge_hour_utc: 4  # env RETENTION_PURGE_HOUR wins
+  # Scheduled backups: a consistent snapshot (VACUUM INTO) of the whole DB is
+  # written into `dir` daily at `hour_utc`; only the newest `keep` files stay.
+  # With s3 filled in, each snapshot is also uploaded to an S3-compatible
+  # bucket with the same keep-N rotation applied to the prefix. Credentials
+  # come from env only: S3_ACCESS_KEY / S3_SECRET_KEY.
+  backup:
+    enabled: false     # env BACKUP_ENABLED wins
+    hour_utc: 3        # env BACKUP_HOUR wins
+    dir: 'backups'     # env BACKUP_DIR wins; point at a mounted volume
+    keep: 14           # env BACKUP_KEEP wins
+    s3:
+      endpoint: ''     # env S3_ENDPOINT wins; e.g. https://s3.storage.example.com
+      region: 'us-east-1'  # env S3_REGION wins
+      bucket: ''       # env S3_BUCKET wins
+      prefix: ''       # env S3_PREFIX wins; e.g. 'py-tg-moder'
 

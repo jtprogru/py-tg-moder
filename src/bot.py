@@ -9,6 +9,7 @@ from telegram import Update
 from telegram.ext import Application, CallbackQueryHandler, ChatMemberHandler, CommandHandler, MessageHandler, filters
 
 from core.allowlist import resolve_allowlist, restricted_to_allowed_chats
+from core.backups import start_backups
 from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN, WEB_ENABLED, WEB_HOST, WEB_PORT, WEB_SESSION_SECRET
 from core.retention import start_retention
 from core.storage import get_storage
@@ -30,10 +31,11 @@ logger = logging.getLogger(__name__)
 async def _post_init(application) -> None:
     """Runtime setup once the bot is ready: resolve the allowlist, rearm any
     captcha challenges that were pending when the process last stopped, and
-    start the daily retention purge."""
+    start the daily retention purge and scheduled backups."""
     await resolve_allowlist(application)
     await rearm_captchas(application)
     start_retention(application)
+    start_backups(application)
 
 
 def build_application() -> Application:

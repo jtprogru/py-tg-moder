@@ -99,6 +99,24 @@ _retention: dict = cfg.get("storage", {}).get("retention", {}) or {}
 RETENTION_DAYS: int = int(os.getenv("RETENTION_DAYS") or _retention.get("days", 365))
 RETENTION_PURGE_HOUR: int = int(os.getenv("RETENTION_PURGE_HOUR") or _retention.get("purge_hour_utc", 4)) % 24
 
+# Scheduled backups: a daily VACUUM INTO snapshot into a directory, keeping
+# the newest `keep` files; optionally mirrored to an S3-compatible bucket.
+# Env vars win over config.yaml; S3 credentials come from env only.
+_backup: dict = cfg.get("storage", {}).get("backup", {}) or {}
+BACKUP_ENABLED: bool = _parse_bool(os.getenv("BACKUP_ENABLED"), bool(_backup.get("enabled", False)))
+BACKUP_HOUR: int = int(os.getenv("BACKUP_HOUR") or _backup.get("hour_utc", 3)) % 24
+BACKUP_DIR: str = os.getenv("BACKUP_DIR") or str(_backup.get("dir", "backups"))
+BACKUP_KEEP: int = max(1, int(os.getenv("BACKUP_KEEP") or _backup.get("keep", 14)))
+_s3: dict = _backup.get("s3", {}) or {}
+S3_ENDPOINT: str = (os.getenv("S3_ENDPOINT") or str(_s3.get("endpoint", "") or "")).rstrip("/")
+S3_REGION: str = os.getenv("S3_REGION") or str(_s3.get("region", "us-east-1"))
+S3_BUCKET: str = os.getenv("S3_BUCKET") or str(_s3.get("bucket", "") or "")
+_s3_prefix: str = os.getenv("S3_PREFIX") or str(_s3.get("prefix", "") or "")
+# A non-empty prefix acts as a folder, so it must end with a slash.
+S3_PREFIX: str = _s3_prefix + "/" if _s3_prefix and not _s3_prefix.endswith("/") else _s3_prefix
+S3_ACCESS_KEY: Optional[str] = os.getenv("S3_ACCESS_KEY")
+S3_SECRET_KEY: Optional[str] = os.getenv("S3_SECRET_KEY")
+
 # Web admin dashboard. Env vars win over config.yaml, same as DB_PATH.
 _web: dict = cfg.get("web", {}) or {}
 WEB_ENABLED: bool = _parse_bool(os.getenv("WEB_ENABLED"), bool(_web.get("enabled", False)))

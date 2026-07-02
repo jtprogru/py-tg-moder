@@ -11,13 +11,14 @@ import asyncio
 import logging
 import os
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 from telegram.error import TelegramError
 
-from core import config
+from core import backups, config
 from core.audit import AuditEvent, record_event
 from core.duration import format_duration, parse_duration
 from core.storage import get_storage
@@ -137,13 +138,46 @@ def _db_size_mb() -> Optional[float]:
 
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request, admin: int = Depends(require_admin)) -> Response:
+    snapshots = [
+        {
+            "name": entry["name"],
+            "size_mb": round(entry["size"] / (1024 * 1024), 2),
+            "when": datetime.fromtimestamp(entry["mtime"], tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        }
+        for entry in await asyncio.to_thread(backups.list_local_backups)
+    ]
     context = {
         "retention_days": config.RETENTION_DAYS,
         "purge_hour": config.RETENTION_PURGE_HOUR,
         "db_size_mb": _db_size_mb(),
+        "backup_enabled": config.BACKUP_ENABLED,
+        "backup_hour": config.BACKUP_HOUR,
+        "backup_dir": config.BACKUP_DIR,
+        "backup_keep": config.BACKUP_KEEP,
+        "s3_configured": backups.s3_configured(),
+        "backups": snapshots,
         "csrf": make_csrf(admin),
     }
     return templates.TemplateResponse(request, "admin.html", context)
+
+
+@router.post("/admin/backup", response_class=HTMLResponse)
+async def backup_now(request: Request, csrf: str = Form(""), admin: int = Depends(require_admin)) -> Response:
+    if not check_csrf(csrf, admin):
+        return _result(request, error="Сессия устарела — обнови страницу и повтори.", status_code=403)
+    try:
+        meta = await backups.backup_once(actor_id=admin)
+    except Exception:
+        logger.exception("[ERROR] Manual backup by admin %s failed", admin)
+        return _result(request, error="Бэкап не удался — подробности в логах бота.", status_code=500)
+    size_mb = round(meta["size"] / (1024 * 1024), 2)
+    if meta.get("s3_key"):
+        suffix = " и выгружен в S3"
+    elif meta.get("s3_error"):
+        suffix = ", но выгрузка в S3 не удалась (см. логи)"
+    else:
+        suffix = ""
+    return _result(request, notice=f"Бэкап {meta['file']} ({size_mb} МБ) создан{suffix}.")
 
 
 @router.post("/admin/compaction/preview", response_class=HTMLResponse)

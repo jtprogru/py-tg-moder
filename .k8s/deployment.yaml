@@ -40,6 +40,10 @@ spec:
             value: /data/moder.db
           - name: WEB_ENABLED
             value: "true"
+          - name: BACKUP_ENABLED
+            value: "true"
+          - name: BACKUP_DIR
+            value: /data/backups
           - name: WEB_SESSION_SECRET
             valueFrom:
               secretKeyRef:
