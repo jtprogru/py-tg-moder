@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from core import config
 from web.app import create_app
 from web.auth import SESSION_COOKIE, make_session
+from web.routes.dashboard import _bucketize, _granularity
 
 
 class FakeChatInfo:
@@ -177,3 +178,99 @@ def test_dashboard_aggregates(audit_store):
     assert audit_store.count_audit_events(chat_id=100) == 4
     series = audit_store.audit_series(100, 0)
     assert {row["event"] for row in series} == {"member_joined", "captcha_shown", "captcha_passed", "ban"}
+
+
+# -- long-period bucketing --------------------------------------------------------
+
+
+def test_granularity_thresholds():
+    assert _granularity(7) == "day"
+    assert _granularity(31) == "day"
+    assert _granularity(90) == "week"
+    assert _granularity(180) == "week"
+    assert _granularity(365) == "month"
+
+
+def test_bucketize_by_week_labels_monday():
+    days = ["2026-07-01", "2026-07-02", "2026-07-06"]  # Wed, Thu, next Mon
+    labels, series = _bucketize(days, {"m": [1, 2, 4]}, "week")
+    assert labels == ["2026-06-29", "2026-07-06"]
+    assert series["m"] == [3, 4]
+
+
+def test_bucketize_by_month():
+    days = ["2026-06-30", "2026-07-01", "2026-07-02"]
+    labels, series = _bucketize(days, {"m": [1, 2, 4]}, "month")
+    assert labels == ["2026-06", "2026-07"]
+    assert series["m"] == [1, 6]
+
+
+def test_bucketize_day_is_passthrough():
+    days = ["2026-07-01", "2026-07-02"]
+    labels, series = _bucketize(days, {"m": [5, 6]}, "day")
+    assert labels == days
+    assert series["m"] == [5, 6]
+
+
+def test_chat_page_long_period_buckets_by_month(admin_client, audit_store):
+    _seed(audit_store)
+    response = admin_client.get("/chats/100?days=365")
+    assert response.status_code == 200
+    assert "по месяцам" in response.text
+
+
+# -- user page --------------------------------------------------------------------
+
+
+def test_user_page_shows_history(admin_client, audit_store):
+    _seed(audit_store)
+    audit_store.add_mute(100, 42, until=None)
+    response = admin_client.get("/chats/100/users/42")
+    assert response.status_code == 200
+    assert "@alice" in response.text
+    assert "флуд" in response.text  # warn reason
+    assert "замьючен" in response.text  # active mute tile
+    assert 'value="42"' in response.text  # prefilled action target
+    assert "капча пройдена" in response.text  # audit trail
+
+
+def test_user_page_shows_cleared_warns(admin_client, audit_store):
+    _seed(audit_store)
+    audit_store.clear_warns(100, 42)
+    response = admin_client.get("/chats/100/users/42")
+    assert "снят" in response.text
+    assert "0<span class=\"tile-sub\">/ 1</span>" in response.text  # active/total warns
+
+
+def test_user_page_for_unknown_member(admin_client, audit_store):
+    _seed(audit_store)
+    response = admin_client.get("/chats/100/users/777")
+    assert response.status_code == 200
+    assert "в списке участников не встречался" in response.text
+
+
+# -- quick actions and cross-links --------------------------------------------------
+
+
+def test_top_lists_link_to_user_page(admin_client, audit_store):
+    _seed(audit_store)
+    response = admin_client.get("/chats/100")
+    assert '/chats/100/users/42' in response.text
+
+
+def test_audit_rows_have_quick_actions(admin_client, audit_store):
+    _seed(audit_store)
+    response = admin_client.get("/chats/100/audit")
+    assert 'hx-post="/chats/100/actions"' in response.text
+    assert '"action": "ban"' in response.text
+    assert '"action": "mute"' in response.text
+    assert '<a href="/chats/100/users/42">' in response.text
+
+
+def test_user_lookup_aggregates(audit_store):
+    _seed(audit_store, chat_id=100)
+    series = audit_store.user_message_series(100, 42, "1970-01-01")
+    assert len(series) == 1 and series[0]["count"] == 1
+    assert audit_store.get_mute(100, 42) is None
+    audit_store.add_mute(100, 42, until=123, now=100)
+    assert audit_store.get_mute(100, 42) == {"until": 123, "created_at": 100}

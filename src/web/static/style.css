@@ -116,6 +116,15 @@ tbody tr:last-child td { border-bottom: none; }
 
 .pager { display: flex; gap: 16px; align-items: center; margin-top: 12px; }
 
+/* Inline quick actions in journal / top-list rows: quiet until hovered. */
+.row-actions { margin-left: 6px; white-space: nowrap; }
+.row-actions button {
+  background: none; color: var(--text-secondary);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 0 7px; font-size: 12px; line-height: 20px; cursor: pointer;
+}
+.row-actions button:hover { border-color: var(--accent); color: var(--text-primary); }
+
 .export-row { font-size: 13px; margin-top: -8px; }
 .export-list { margin: 8px 0 0; padding-left: 20px; }
 .export-list li { margin-bottom: 6px; }
