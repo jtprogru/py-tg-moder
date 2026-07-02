@@ -114,6 +114,15 @@ tbody tr:last-child td { border-bottom: none; }
 
 .pager { display: flex; gap: 16px; align-items: center; margin-top: 12px; }
 
+.action-notice { color: #006300; }
+@media (prefers-color-scheme: dark) { .action-notice { color: #0ca30c; } }
+.action-error { color: #d03b3b; }
+.form-hint { font-size: 12px; margin-bottom: 0; }
+.filter-row button.danger { background: #d03b3b; }
+.compaction-preview { margin-top: 12px; }
+.compaction-preview table { max-width: 480px; margin: 8px 0; }
+.compaction-preview form { margin-top: 12px; }
+
 .login-wrap { min-height: 100vh; display: grid; place-items: center; background: var(--page); }
 .login-card { max-width: 380px; text-align: center; }
 .login-error { color: #d03b3b; }

@@ -412,6 +412,13 @@ class Storage:
 
     # -- retention -----------------------------------------------------------------
 
+    @staticmethod
+    def _retention_cutoffs(retention_days: int, now: Optional[int] = None) -> tuple[int, str]:
+        """Cutoff as (unix ts, YYYY-MM-DD): start of the UTC day ``retention_days`` back."""
+        cutoff_day = datetime.fromtimestamp(_now(now), tz=timezone.utc).date() - timedelta(days=retention_days)
+        cutoff_ts = int(datetime(cutoff_day.year, cutoff_day.month, cutoff_day.day, tzinfo=timezone.utc).timestamp())
+        return cutoff_ts, cutoff_day.strftime("%Y-%m-%d")
+
     def purge_old_data(self, retention_days: int, now: Optional[int] = None) -> dict[str, int]:
         """Hard-delete history older than ``retention_days`` (whole UTC days).
 
@@ -420,9 +427,7 @@ class Storage:
         captchas, username cache, counters) is never purged. Returns the number
         of rows removed per table.
         """
-        cutoff_day = datetime.fromtimestamp(_now(now), tz=timezone.utc).date() - timedelta(days=retention_days)
-        cutoff_ts = int(datetime(cutoff_day.year, cutoff_day.month, cutoff_day.day, tzinfo=timezone.utc).timestamp())
-        cutoff_date = cutoff_day.strftime("%Y-%m-%d")
+        cutoff_ts, cutoff_date = self._retention_cutoffs(retention_days, now)
         with self._lock:
             counts = {
                 "audit_log": self._conn.execute("DELETE FROM audit_log WHERE created_at < ?", (cutoff_ts,)).rowcount,
@@ -431,6 +436,25 @@ class Storage:
             }
             self._conn.commit()
         return counts
+
+    def purge_counts(self, retention_days: int, now: Optional[int] = None) -> dict[str, int]:
+        """Dry run of :meth:`purge_old_data`: how many rows *would* be deleted."""
+        cutoff_ts, cutoff_date = self._retention_cutoffs(retention_days, now)
+        with self._lock:
+            return {
+                "audit_log": self._conn.execute("SELECT COUNT(*) AS n FROM audit_log WHERE created_at < ?", (cutoff_ts,)).fetchone()["n"],
+                "warns": self._conn.execute("SELECT COUNT(*) AS n FROM warns WHERE deleted_at IS NOT NULL AND deleted_at < ?", (cutoff_ts,)).fetchone()["n"],
+                "message_stats": self._conn.execute("SELECT COUNT(*) AS n FROM message_stats WHERE day < ?", (cutoff_date,)).fetchone()["n"],
+            }
+
+    def vacuum(self) -> None:
+        """Compact the database file (reclaims pages freed by purges).
+
+        Briefly blocks other writers — acceptable for this single-instance bot.
+        """
+        with self._lock:
+            self._conn.commit()  # VACUUM refuses to run inside a transaction
+            self._conn.execute("VACUUM")
 
     # -- dashboard aggregates ------------------------------------------------------
 
