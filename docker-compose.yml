@@ -8,6 +8,11 @@ services:
     environment:
       # Keep SQLite state on the mounted volume so it survives recreation.
       DB_PATH: /data/moder.db
+      # Web admin dashboard. Enable, then put WEB_SESSION_SECRET (a long random
+      # string) into src/.env alongside the bot token.
+      # WEB_ENABLED: "true"
+    # ports:
+    #   - "8080:8080"
     volumes:
       - moder-data:/data
 

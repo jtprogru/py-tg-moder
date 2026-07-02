@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Журнал — {{ chat_title }} — py-tg-moder{% endblock %}
+{% block nav %}<a class="nav-link" href="/chats/{{ chat_id }}">Аналитика</a>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Журнал действий — {{ chat_title }}</h1>
+</div>
+
+<form class="filter-row card" method="get" action="/chats/{{ chat_id }}/audit"
+      hx-get="/chats/{{ chat_id }}/audit" hx-target="#audit-table" hx-push-url="true">
+  <label>Событие
+    <select name="event">
+      <option value="">— все —</option>
+      {% for value, label in event_labels.items() %}
+        <option value="{{ value }}"{% if value == filter_event %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>User ID
+    <input type="number" name="user_id" value="{{ filter_user_id if filter_user_id is not none else '' }}" placeholder="все">
+  </label>
+  <button type="submit">Показать</button>
+</form>
+
+<div id="audit-table">
+  {% include "_audit_table.html" %}
+</div>
+{% endblock %}

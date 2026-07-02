@@ -62,6 +62,16 @@ kubectl create secret docker-registry ghcrio-auth-secret \
 - `<github_pat>` - PAT который можно получить в разделе [Tokens](https://github.com/settings/tokens);
 - `<github_email>` - твой email от GitHub;
 
+## Веб-панель
+
+Вместе с ботом в том же поде поднимается веб-дашборд (порт 8080, Service `py-tg-moder`). Для него нужны:
+
+1. Второй ключ в секрете — `web_session_secret` (подпись сессионных кук): `openssl rand -hex 32 | tr -d '\n' | base64`, положить в `secrets.yaml` рядом с `tg_token`.
+2. `admin_ids` в `src/config.yaml` — Telegram user id тех, кому можно в панель.
+3. Публичный HTTPS-домен для Telegram Login Widget: Ingress с TLS на Service `py-tg-moder:80` (домен свой, поэтому манифест Ingress в репо не включён), домен привязать к боту через @BotFather → `/setdomain`, и прописать его в `web.public_url` в `src/config.yaml`.
+
+Liveness/readiness-пробы ходят в `GET /healthz` — эндпоинт не требует аутентификации.
+
 ## Разворачиваем бота
 
 Чтобы развернуть бота в K8s достаточно выполнить это:

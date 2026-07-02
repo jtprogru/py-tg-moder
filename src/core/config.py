@@ -92,6 +92,18 @@ _retention: dict = cfg.get("storage", {}).get("retention", {}) or {}
 RETENTION_DAYS: int = int(os.getenv("RETENTION_DAYS") or _retention.get("days", 365))
 RETENTION_PURGE_HOUR: int = int(os.getenv("RETENTION_PURGE_HOUR") or _retention.get("purge_hour_utc", 4)) % 24
 
+# Web admin dashboard. Env vars win over config.yaml, same as DB_PATH.
+_web: dict = cfg.get("web", {}) or {}
+WEB_ENABLED: bool = _parse_bool(os.getenv("WEB_ENABLED"), bool(_web.get("enabled", False)))
+WEB_HOST: str = os.getenv("WEB_HOST") or str(_web.get("host", "0.0.0.0"))
+WEB_PORT: int = int(os.getenv("WEB_PORT") or _web.get("port", 8080))
+WEB_PUBLIC_URL: str = (os.getenv("WEB_PUBLIC_URL") or str(_web.get("public_url", "") or "")).rstrip("/")
+# Secret for signing the session cookie; the dashboard refuses to start without it.
+WEB_SESSION_SECRET: Optional[str] = os.getenv("WEB_SESSION_SECRET")
+
+# Telegram user ids allowed into the web dashboard.
+ADMIN_IDS: frozenset[int] = frozenset(int(x) for x in (cfg.get("admin_ids", []) or []))
+
 DEBUG: bool = _parse_bool(os.getenv("DEBUG"))
 SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
 

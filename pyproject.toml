@@ -7,10 +7,14 @@ license = "MIT"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+  "fastapi>=0.115",
+  "itsdangerous>=2.2",
+  "jinja2>=3.1",
   "python-telegram-bot>=22.0",
   "requests>=2.32",
   "ruamel.yaml>=0.18",
   "sentry-sdk>=2",
+  "uvicorn>=0.34",
 ]
 
 [project.urls]
@@ -20,6 +24,7 @@ Documentation = "https://github.com/jtprogru/py-tg-moder/wiki"
 
 [dependency-groups]
 dev = [
+  "httpx>=0.28",
   "pytest>=8",
   "pytest-cov>=5",
   "pytest-env>=1",
