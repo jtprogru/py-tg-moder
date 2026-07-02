@@ -1,6 +1,8 @@
+import sqlite3
+
 import pytest
 
-from core.storage import Storage
+from core.storage import _SCHEMA, Storage
 
 
 @pytest.fixture
@@ -70,6 +72,97 @@ def test_clear_warns(store):
     store.add_warn(1, 42, now=200)
     assert store.clear_warns(1, 42) == 2
     assert store.count_warns(1, 42) == 0
+
+
+# -- warns: soft-delete ------------------------------------------------------
+
+
+def test_clear_warns_keeps_history(store):
+    store.add_warn(1, 42, reason="a", now=100)
+    store.add_warn(1, 42, reason="b", now=200)
+    store.clear_warns(1, 42, now=300)
+    assert store.list_warns(1, 42) == []
+    history = store.list_warns(1, 42, include_deleted=True)
+    assert [w["reason"] for w in history] == ["a", "b"]
+    assert all(w["deleted_at"] == 300 for w in history)
+
+
+def test_remove_last_warn_keeps_history(store):
+    store.add_warn(1, 42, reason="a", now=100)
+    store.add_warn(1, 42, reason="b", now=200)
+    assert store.remove_last_warn(1, 42, now=300) is True
+    assert [w["reason"] for w in store.list_warns(1, 42)] == ["a"]
+    assert len(store.list_warns(1, 42, include_deleted=True)) == 2
+
+
+def test_remove_last_warn_skips_soft_deleted(store):
+    store.add_warn(1, 42, reason="a", now=100)
+    store.remove_last_warn(1, 42, now=200)
+    # The only warn left is already soft-deleted — nothing to remove.
+    assert store.remove_last_warn(1, 42, now=300) is False
+
+
+def test_warn_cycle_restarts_after_clear(store):
+    store.add_warn(1, 42, now=100)
+    store.add_warn(1, 42, now=200)
+    store.clear_warns(1, 42, now=300)
+    store.add_warn(1, 42, now=400)
+    assert store.count_warns(1, 42) == 1  # the next cycle starts clean
+
+
+# -- message stats -----------------------------------------------------------
+
+
+def test_record_message_stat_buckets_by_utc_day(store):
+    day1, day2 = 1_700_000_000, 1_700_000_000 + 86400  # consecutive UTC days
+    store.record_message_stat(1, 42, now=day1)
+    store.record_message_stat(1, 42, now=day1 + 60)
+    store.record_message_stat(1, 42, now=day2)
+    store.record_message_stat(1, 43, now=day2)
+    rows = store._conn.execute("SELECT day, user_id, count FROM message_stats ORDER BY day, user_id").fetchall()
+    assert [(r["day"], r["user_id"], r["count"]) for r in rows] == [
+        ("2023-11-14", 42, 2),
+        ("2023-11-15", 42, 1),
+        ("2023-11-15", 43, 1),
+    ]
+
+
+# -- migrations ----------------------------------------------------------------
+
+
+def test_migration_upgrades_v0_database(tmp_path):
+    # Build a database exactly as the pre-migration bot would have left it.
+    db = str(tmp_path / "old.db")
+    conn = sqlite3.connect(db)
+    conn.executescript(_SCHEMA)
+    conn.execute("INSERT INTO warns (chat_id, user_id, moderator_id, reason, created_at) VALUES (1, 42, 7, 'spam', 100)")
+    conn.commit()
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 0
+    conn.close()
+
+    s = Storage(db)
+    assert s._conn.execute("PRAGMA user_version").fetchone()[0] == 1
+    columns = {row[1] for row in s._conn.execute("PRAGMA table_info(warns)")}
+    assert "deleted_at" in columns
+    # Pre-existing warns survive the migration and count as active.
+    assert s.count_warns(1, 42) == 1
+    s.add_audit_event(1, "ban", user_id=42, now=200)  # new tables are usable
+    s.record_message_stat(1, 42, now=200)
+    s.close()
+
+
+def test_fresh_database_is_fully_migrated(store):
+    assert store._conn.execute("PRAGMA user_version").fetchone()[0] == 1
+
+
+def test_migration_is_idempotent_across_reconnect(tmp_path):
+    db = str(tmp_path / "m.db")
+    a = Storage(db)
+    a.add_audit_event(1, "warn", user_id=42, now=100)
+    a.close()
+    b = Storage(db)  # reopening must not re-run migrations
+    assert len(b.list_audit_events(chat_id=1)) == 1
+    b.close()
 
 
 # -- mutes -----------------------------------------------------------------

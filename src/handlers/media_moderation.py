@@ -14,6 +14,7 @@ from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes, filters
 
 from core import config
+from core.audit import AuditEvent, record_event
 from core.config import logger
 
 # Background tasks for self-deleting notices; kept referenced so they are not
@@ -81,6 +82,7 @@ async def moderate_media(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except (BadRequest, Forbidden) as exc:
         logger.debug("[DEBUG] Could not delete media message: %s", exc)
         return
+    await record_event(chat.id, AuditEvent.MEDIA_DELETED, user_id=user.id, meta={"type": label})
     logger.info("[INFO] Deleted %s from user %s", label, user.id)
 
     if not config.MEDIA_NOTIFY:

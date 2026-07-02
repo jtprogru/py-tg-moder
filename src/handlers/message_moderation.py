@@ -14,6 +14,7 @@ from telegram.error import BadRequest, Forbidden
 from telegram.ext import ContextTypes
 
 from core import config
+from core.audit import AuditEvent, record_event
 from core.config import logger
 from core.storage import get_storage
 
@@ -60,6 +61,7 @@ async def _enforce(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: 
         logger.debug("[DEBUG] Could not delete newcomer message: %s", exc)
 
     await asyncio.to_thread(storage.increment_counter, chat.id, "newcomer_filtered")
+    await record_event(chat.id, AuditEvent.NEWCOMER_FILTERED, user_id=user_id, reason=reason, meta={"action": config.NEWCOMER_ACTION})
 
     if config.NEWCOMER_ACTION == "mute":
         try:
@@ -70,9 +72,11 @@ async def _enforce(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: 
     elif config.NEWCOMER_ACTION == "warn":
         await asyncio.to_thread(storage.add_warn, chat.id, user_id, context.bot.id, f"авто: {reason}")
         count = await asyncio.to_thread(storage.count_warns, chat.id, user_id)
+        await record_event(chat.id, AuditEvent.WARN, user_id=user_id, actor_id=context.bot.id, reason=f"авто: {reason}", meta={"count": count})
         if count >= config.WARN_LIMIT:
             await _auto_punish(update, user_id)
             await asyncio.to_thread(storage.clear_warns, chat.id, user_id)
+            await record_event(chat.id, AuditEvent.WARNS_CLEARED, user_id=user_id, meta={"trigger": "auto_punish", "count": count})
 
     logger.info("[INFO] Newcomer %s message filtered (%s, action=%s)", user_id, reason, config.NEWCOMER_ACTION)
 

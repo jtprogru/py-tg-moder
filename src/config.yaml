@@ -49,4 +49,10 @@ storage:
   # SQLite database file for moderation state. Overridden by the DB_PATH env var.
   # Point this at a mounted volume so state survives restarts.
   path: 'moder.db'
+  # History retention: audit log, soft-deleted warns and per-day message stats
+  # older than `days` are hard-deleted once a day at `purge_hour_utc`.
+  # Live moderation state (active warns, mutes, members) is never purged.
+  retention:
+    days: 365          # env RETENTION_DAYS wins
+    purge_hour_utc: 4  # env RETENTION_PURGE_HOUR wins
 

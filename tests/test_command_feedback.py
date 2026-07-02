@@ -33,6 +33,7 @@ class FakeMessage:
 
 class FakeChat:
     def __init__(self, admins, fail=False):
+        self.id = 100
         self._admins = admins
         self._fail = fail
         self.banned = []

@@ -12,10 +12,12 @@ connection is opened with ``check_same_thread=False`` and guarded by a lock so
 it is safe to use from the thread pool.
 """
 
+import json
 import os
 import sqlite3
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from core.config import DB_PATH
@@ -69,6 +71,44 @@ CREATE TABLE IF NOT EXISTS captchas (
 );
 """
 
+# The baseline schema above is frozen. Every later change lives here as a
+# migration script; ``PRAGMA user_version`` records how many have been applied,
+# so the same code path upgrades existing databases and freshly created ones.
+_MIGRATIONS: list[str] = [
+    # v1: audit log, per-day message stats, soft-delete for warns.
+    """
+    ALTER TABLE warns ADD COLUMN deleted_at INTEGER;
+    CREATE INDEX idx_warns_active ON warns (chat_id, user_id) WHERE deleted_at IS NULL;
+
+    CREATE TABLE audit_log (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id    INTEGER NOT NULL,
+        user_id    INTEGER,            -- target; NULL for chat-level events
+        actor_id   INTEGER,            -- moderator / web admin; NULL = bot automation
+        event      TEXT NOT NULL,
+        reason     TEXT,
+        meta       TEXT,               -- JSON blob with event-specific details
+        created_at INTEGER NOT NULL
+    );
+    CREATE INDEX idx_audit_chat_time  ON audit_log (chat_id, created_at);
+    CREATE INDEX idx_audit_event_time ON audit_log (event, created_at);
+    CREATE INDEX idx_audit_chat_user  ON audit_log (chat_id, user_id, created_at);
+
+    CREATE TABLE message_stats (
+        chat_id INTEGER NOT NULL,
+        day     TEXT    NOT NULL,     -- UTC 'YYYY-MM-DD'
+        user_id INTEGER NOT NULL,
+        count   INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (chat_id, day, user_id)
+    );
+    CREATE INDEX idx_msgstats_chat_day ON message_stats (chat_id, day);
+    """,
+]
+
+
+def _utc_day(ts: int) -> str:
+    return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+
 
 def _now(now: Optional[int]) -> int:
     return int(time.time()) if now is None else now
@@ -94,6 +134,15 @@ class Storage:
                 # Better read/write concurrency for a long-running process.
                 self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.executescript(_SCHEMA)
+            self._conn.commit()
+            self._migrate()
+
+    def _migrate(self) -> None:
+        """Apply pending migrations; ``PRAGMA user_version`` gates what already ran."""
+        version = self._conn.execute("PRAGMA user_version").fetchone()[0]
+        for number, script in enumerate(_MIGRATIONS[version:], start=version + 1):
+            self._conn.executescript(script)
+            self._conn.execute(f"PRAGMA user_version = {number}")
             self._conn.commit()
 
     def close(self) -> None:
@@ -177,40 +226,45 @@ class Storage:
             return cur.lastrowid
 
     def count_warns(self, chat_id: int, user_id: int) -> int:
+        """Count a user's active (not soft-deleted) warns."""
         with self._lock:
             row = self._conn.execute(
-                "SELECT COUNT(*) AS n FROM warns WHERE chat_id = ? AND user_id = ?",
+                "SELECT COUNT(*) AS n FROM warns WHERE chat_id = ? AND user_id = ? AND deleted_at IS NULL",
                 (chat_id, user_id),
             ).fetchone()
         return row["n"]
 
-    def list_warns(self, chat_id: int, user_id: int) -> list[dict]:
+    def list_warns(self, chat_id: int, user_id: int, include_deleted: bool = False) -> list[dict]:
+        """Return a user's warns, oldest first; soft-deleted ones only on request."""
+        query = "SELECT id, chat_id, user_id, moderator_id, reason, created_at, deleted_at FROM warns WHERE chat_id = ? AND user_id = ?"
+        if not include_deleted:
+            query += " AND deleted_at IS NULL"
         with self._lock:
-            rows = self._conn.execute(
-                "SELECT id, chat_id, user_id, moderator_id, reason, created_at FROM warns WHERE chat_id = ? AND user_id = ? ORDER BY id",
-                (chat_id, user_id),
-            ).fetchall()
+            rows = self._conn.execute(f"{query} ORDER BY id", (chat_id, user_id)).fetchall()
         return [dict(r) for r in rows]
 
-    def remove_last_warn(self, chat_id: int, user_id: int) -> bool:
-        """Drop the most recent warn for a user; return True if one was removed."""
+    def remove_last_warn(self, chat_id: int, user_id: int, now: Optional[int] = None) -> bool:
+        """Soft-delete the most recent active warn; return True if one was removed.
+
+        Rows are kept for history/analytics and hard-deleted later by retention.
+        """
         with self._lock:
             row = self._conn.execute(
-                "SELECT id FROM warns WHERE chat_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1",
+                "SELECT id FROM warns WHERE chat_id = ? AND user_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT 1",
                 (chat_id, user_id),
             ).fetchone()
             if row is None:
                 return False
-            self._conn.execute("DELETE FROM warns WHERE id = ?", (row["id"],))
+            self._conn.execute("UPDATE warns SET deleted_at = ? WHERE id = ?", (_now(now), row["id"]))
             self._conn.commit()
         return True
 
-    def clear_warns(self, chat_id: int, user_id: int) -> int:
-        """Remove all warns for a user; return how many were removed."""
+    def clear_warns(self, chat_id: int, user_id: int, now: Optional[int] = None) -> int:
+        """Soft-delete all active warns for a user; return how many were affected."""
         with self._lock:
             cur = self._conn.execute(
-                "DELETE FROM warns WHERE chat_id = ? AND user_id = ?",
-                (chat_id, user_id),
+                "UPDATE warns SET deleted_at = ? WHERE chat_id = ? AND user_id = ? AND deleted_at IS NULL",
+                (_now(now), chat_id, user_id),
             )
             self._conn.commit()
             return cur.rowcount
@@ -284,6 +338,99 @@ class Storage:
                 (chat_id, name),
             ).fetchone()
         return row["value"] if row else 0
+
+    # -- audit log ---------------------------------------------------------------
+
+    def add_audit_event(
+        self,
+        chat_id: int,
+        event: str,
+        user_id: Optional[int] = None,
+        actor_id: Optional[int] = None,
+        reason: Optional[str] = None,
+        meta: Optional[dict] = None,
+        now: Optional[int] = None,
+    ) -> int:
+        """Append an event to the audit log; ``meta`` is stored as a JSON blob."""
+        payload = json.dumps(meta, ensure_ascii=False) if meta is not None else None
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO audit_log (chat_id, user_id, actor_id, event, reason, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (chat_id, user_id, actor_id, str(event), reason, payload, _now(now)),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def list_audit_events(
+        self,
+        chat_id: Optional[int] = None,
+        event: Optional[str] = None,
+        user_id: Optional[int] = None,
+        since: Optional[int] = None,
+        until: Optional[int] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict]:
+        """Return audit events, newest first, filtered by any combination of args."""
+        clauses: list[str] = []
+        params: list = []
+        for clause, value in (
+            ("chat_id = ?", chat_id),
+            ("event = ?", event),
+            ("user_id = ?", user_id),
+            ("created_at >= ?", since),
+            ("created_at < ?", until),
+        ):
+            if value is not None:
+                clauses.append(clause)
+                params.append(value)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        with self._lock:
+            rows = self._conn.execute(
+                f"SELECT id, chat_id, user_id, actor_id, event, reason, meta, created_at FROM audit_log {where} ORDER BY id DESC LIMIT ? OFFSET ?",
+                (*params, limit, offset),
+            ).fetchall()
+        events = []
+        for row in rows:
+            item = dict(row)
+            item["meta"] = json.loads(item["meta"]) if item["meta"] is not None else None
+            events.append(item)
+        return events
+
+    # -- per-day message statistics ----------------------------------------------
+
+    def record_message_stat(self, chat_id: int, user_id: int, now: Optional[int] = None) -> None:
+        """Count a message towards the per-day statistics (UTC day buckets)."""
+        day = _utc_day(_now(now))
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO message_stats (chat_id, day, user_id, count) VALUES (?, ?, ?, 1) "
+                "ON CONFLICT(chat_id, day, user_id) DO UPDATE SET count = count + 1",
+                (chat_id, day, user_id),
+            )
+            self._conn.commit()
+
+    # -- retention -----------------------------------------------------------------
+
+    def purge_old_data(self, retention_days: int, now: Optional[int] = None) -> dict[str, int]:
+        """Hard-delete history older than ``retention_days`` (whole UTC days).
+
+        Only history is touched: audit events, soft-deleted warns and per-day
+        message stats. Live moderation state (active warns, mutes, members,
+        captchas, username cache, counters) is never purged. Returns the number
+        of rows removed per table.
+        """
+        cutoff_day = datetime.fromtimestamp(_now(now), tz=timezone.utc).date() - timedelta(days=retention_days)
+        cutoff_ts = int(datetime(cutoff_day.year, cutoff_day.month, cutoff_day.day, tzinfo=timezone.utc).timestamp())
+        cutoff_date = cutoff_day.strftime("%Y-%m-%d")
+        with self._lock:
+            counts = {
+                "audit_log": self._conn.execute("DELETE FROM audit_log WHERE created_at < ?", (cutoff_ts,)).rowcount,
+                "warns": self._conn.execute("DELETE FROM warns WHERE deleted_at IS NOT NULL AND deleted_at < ?", (cutoff_ts,)).rowcount,
+                "message_stats": self._conn.execute("DELETE FROM message_stats WHERE day < ?", (cutoff_date,)).rowcount,
+            }
+            self._conn.commit()
+        return counts
 
     # -- username -> id cache --------------------------------------------------
 
