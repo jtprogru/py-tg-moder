@@ -48,6 +48,7 @@ EVENT_LABELS: dict[str, str] = {
     AuditEvent.COMPACTION_FORCED: "компактинг БД",
     AuditEvent.RAID_STARTED: "начало рейда",
     AuditEvent.RAID_ENDED: "конец рейда",
+    AuditEvent.BACKUP_CREATED: "бэкап создан",
 }
 
 # Events that count as "moderation actions" in the headline tile and breakdown

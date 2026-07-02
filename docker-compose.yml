@@ -11,6 +11,9 @@ services:
       # Web admin dashboard. Enable, then put WEB_SESSION_SECRET (a long random
       # string) into src/.env alongside the bot token.
       # WEB_ENABLED: "true"
+      # Daily DB snapshots onto the volume (S3 creds, if any, go to src/.env).
+      # BACKUP_ENABLED: "true"
+      # BACKUP_DIR: /data/backups
     # ports:
     #   - "8080:8080"
     volumes:

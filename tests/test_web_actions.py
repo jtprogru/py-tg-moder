@@ -1,3 +1,4 @@
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -207,3 +208,31 @@ def test_compaction_requires_csrf(client, audit_store):
     response = client.post("/admin/compaction", data={"days_to_keep": "0", "csrf": ""})
     assert response.status_code == 403
     assert audit_store.count_audit_events(chat_id=CHAT) == 1
+
+
+# -- backups ------------------------------------------------------------------------
+
+
+def test_admin_page_lists_local_backups(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BACKUP_DIR", str(tmp_path))
+    (tmp_path / "moder-20260701T030000Z.sqlite").write_bytes(b"x")
+    response = client.get("/admin")
+    assert "Автобэкапы" in response.text
+    assert "moder-20260701T030000Z.sqlite" in response.text
+
+
+def test_manual_backup_creates_file_and_audits(client, tmp_path, monkeypatch, audit_store):
+    monkeypatch.setattr(config, "BACKUP_DIR", str(tmp_path / "b"))
+    response = client.post("/admin/backup", data={"csrf": make_csrf(ADMIN_ID)})
+    assert response.status_code == 200
+    assert "создан" in response.text
+    assert any(name.startswith("moder-") for name in os.listdir(tmp_path / "b"))
+    event = audit_store.list_audit_events(event="backup_created")[0]
+    assert event["actor_id"] == ADMIN_ID
+
+
+def test_manual_backup_requires_csrf(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BACKUP_DIR", str(tmp_path / "b"))
+    response = client.post("/admin/backup", data={"csrf": "bad"})
+    assert response.status_code == 403
+    assert not (tmp_path / "b").exists()

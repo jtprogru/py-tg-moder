@@ -139,6 +139,16 @@ async def export_env() -> Response:
         "WEB_PUBLIC_URL": config.WEB_PUBLIC_URL,
         "RETENTION_DAYS": config.RETENTION_DAYS,
         "RETENTION_PURGE_HOUR": config.RETENTION_PURGE_HOUR,
+        "BACKUP_ENABLED": config.BACKUP_ENABLED,
+        "BACKUP_HOUR": config.BACKUP_HOUR,
+        "BACKUP_DIR": config.BACKUP_DIR,
+        "BACKUP_KEEP": config.BACKUP_KEEP,
+        "S3_ENDPOINT": config.S3_ENDPOINT,
+        "S3_REGION": config.S3_REGION,
+        "S3_BUCKET": config.S3_BUCKET,
+        "S3_PREFIX": config.S3_PREFIX,
+        "S3_ACCESS_KEY": "set" if config.S3_ACCESS_KEY else "not set",
+        "S3_SECRET_KEY": "set" if config.S3_SECRET_KEY else "not set",
         "admin_ids": sorted(config.ADMIN_IDS),
     }
     return Response(

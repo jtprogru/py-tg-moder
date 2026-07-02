@@ -43,6 +43,7 @@ class AuditEvent(enum.StrEnum):
     COMPACTION_FORCED = "compaction_forced"
     RAID_STARTED = "raid_started"
     RAID_ENDED = "raid_ended"
+    BACKUP_CREATED = "backup_created"
 
 
 async def record_event(

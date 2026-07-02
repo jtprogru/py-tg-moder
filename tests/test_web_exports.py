@@ -95,13 +95,16 @@ def test_config_yaml_download(client):
 
 def test_env_json_masks_secrets(client, monkeypatch):
     monkeypatch.setattr(config, "TELEGRAM_BOT_TOKEN", "1234:real-token")
+    monkeypatch.setattr(config, "S3_SECRET_KEY", "s3-real-secret")
     response = client.get("/admin/export/env.json")
     assert response.status_code == 200
     payload = response.json()
     assert payload["TELEGRAM_BOT_TOKEN"] == "set"
     assert payload["WEB_SESSION_SECRET"] == "set"
+    assert payload["S3_SECRET_KEY"] == "set"
     assert "real-token" not in response.text
     assert "test-secret" not in response.text
+    assert "s3-real-secret" not in response.text
     assert payload["admin_ids"] == [ADMIN_ID]
 
 
