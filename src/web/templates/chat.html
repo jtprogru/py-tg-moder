@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ chat_title }} — py-tg-moder{% endblock %}
+{% block nav %}<a class="nav-link" href="/chats/{{ chat_id }}/audit">Журнал действий</a>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ chat_title }}</h1>
+  <nav class="period-filter" aria-label="Период">
+    {% for period in periods %}
+      <a class="period{% if period == days %} period-active{% endif %}" href="/chats/{{ chat_id }}?days={{ period }}">{{ period }} дн</a>
+    {% endfor %}
+  </nav>
+</div>
+
+<div class="tile-row" role="list">
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{{ totals.members }}</span>
+    <span class="tile-label">участников известно</span>
+  </div>
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{{ messages_total }}</span>
+    <span class="tile-label">сообщений за {{ days }} дн</span>
+  </div>
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{{ joins_total }}<span class="tile-sub">/ {{ leaves_total }}</span></span>
+    <span class="tile-label">вступлений / выходов</span>
+  </div>
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{% if captcha.rate is not none %}{{ captcha.rate }}%{% else %}—{% endif %}</span>
+    <span class="tile-label">капча пройдена ({{ captcha.passed }} из {{ captcha.passed + captcha.failed }})</span>
+  </div>
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{{ actions_total }}</span>
+    <span class="tile-label">действий модерации</span>
+  </div>
+  <div class="tile card" role="listitem">
+    <span class="tile-value">{{ totals.active_mutes }}</span>
+    <span class="tile-label">активных мьютов сейчас</span>
+  </div>
+</div>
+
+<section class="card">
+  <h2>Сообщения по дням</h2>
+  <div class="chart-box"><canvas id="chart-messages" role="img" aria-label="Сообщения по дням"></canvas></div>
+  <details class="chart-table">
+    <summary>Данные таблицей</summary>
+    <table>
+      <thead><tr><th>День</th><th class="num">Сообщений</th></tr></thead>
+      <tbody>
+        {% for day in charts.days %}<tr><td>{{ day }}</td><td class="num">{{ charts.messages[loop.index0] }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </details>
+</section>
+
+<section class="card">
+  <h2>Вступления и выходы</h2>
+  <div class="chart-box"><canvas id="chart-members" role="img" aria-label="Вступления и выходы по дням"></canvas></div>
+  <details class="chart-table">
+    <summary>Данные таблицей</summary>
+    <table>
+      <thead><tr><th>День</th><th class="num">Вступления</th><th class="num">Выходы</th></tr></thead>
+      <tbody>
+        {% for day in charts.days %}<tr><td>{{ day }}</td><td class="num">{{ charts.joins[loop.index0] }}</td><td class="num">{{ charts.leaves[loop.index0] }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </details>
+</section>
+
+<div class="two-col">
+  <section class="card">
+    <h2>Действия модерации</h2>
+    {% if actions %}
+      <div class="chart-box chart-box-tall"><canvas id="chart-actions" role="img" aria-label="Действия модерации по типам"></canvas></div>
+      <details class="chart-table">
+        <summary>Данные таблицей</summary>
+        <table>
+          <thead><tr><th>Действие</th><th class="num">Сколько раз</th></tr></thead>
+          <tbody>{% for action in actions %}<tr><td>{{ action.label }}</td><td class="num">{{ action.count }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </details>
+    {% else %}
+      <p class="text-secondary">За период действий модерации не было.</p>
+    {% endif %}
+    <p><a href="/chats/{{ chat_id }}/audit">Смотреть журнал с причинами →</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Самые активные</h2>
+    {% if top_posters %}
+      <table>
+        <thead><tr><th>Пользователь</th><th class="num">Сообщений</th></tr></thead>
+        <tbody>
+          {% for poster in top_posters %}
+          <tr>
+            <td>{{ poster.name }}</td>
+            <td class="num">{{ poster.count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-secondary">Пока нет данных о сообщениях.</p>
+    {% endif %}
+
+    <h2>Больше всего предупреждений</h2>
+    {% if top_warned %}
+      <table>
+        <thead><tr><th>Пользователь</th><th class="num">Варнов</th></tr></thead>
+        <tbody>
+          {% for warned in top_warned %}
+          <tr>
+            <td>{{ warned.name }}</td>
+            <td class="num"><a href="/chats/{{ chat_id }}/audit?user_id={{ warned.user_id }}">{{ warned.count }}</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-secondary">Предупреждений за период не было.</p>
+    {% endif %}
+  </section>
+</div>
+
+<script id="chart-data" type="application/json">{{ charts|tojson }}</script>
+<script src="/static/chart.umd.min.js"></script>
+<script src="/static/charts.js"></script>
+{% endblock %}

@@ -432,6 +432,112 @@ class Storage:
             self._conn.commit()
         return counts
 
+    # -- dashboard aggregates ------------------------------------------------------
+
+    def list_chats(self) -> list[int]:
+        """Chat ids present anywhere in the data (members, audit log or stats)."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT chat_id FROM members UNION SELECT chat_id FROM audit_log UNION SELECT chat_id FROM message_stats ORDER BY chat_id",
+            ).fetchall()
+        return [r["chat_id"] for r in rows]
+
+    def member_totals(self, chat_id: int, now: Optional[int] = None) -> dict:
+        """Headline numbers for a chat: known members, active mutes, pending captchas."""
+        ts = _now(now)
+        with self._lock:
+            members = self._conn.execute("SELECT COUNT(*) AS n FROM members WHERE chat_id = ?", (chat_id,)).fetchone()["n"]
+            mutes = self._conn.execute(
+                "SELECT COUNT(*) AS n FROM mutes WHERE chat_id = ? AND (until IS NULL OR until > ?)",
+                (chat_id, ts),
+            ).fetchone()["n"]
+            captchas = self._conn.execute("SELECT COUNT(*) AS n FROM captchas WHERE chat_id = ?", (chat_id,)).fetchone()["n"]
+        return {"members": members, "active_mutes": mutes, "pending_captchas": captchas}
+
+    def message_series(self, chat_id: int, since_day: str) -> list[dict]:
+        """Daily message totals for a chat since a UTC day (inclusive), oldest first."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT day, SUM(count) AS count FROM message_stats WHERE chat_id = ? AND day >= ? GROUP BY day ORDER BY day",
+                (chat_id, since_day),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def top_posters(self, chat_id: int, since_day: str, limit: int = 10) -> list[dict]:
+        """Most active users in a chat since a UTC day (inclusive)."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT user_id, SUM(count) AS count FROM message_stats WHERE chat_id = ? AND day >= ? GROUP BY user_id ORDER BY count DESC, user_id LIMIT ?",
+                (chat_id, since_day, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def audit_series(self, chat_id: int, since: int) -> list[dict]:
+        """Per-day, per-event counts from the audit log since a unix ts, oldest first."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT strftime('%Y-%m-%d', created_at, 'unixepoch') AS day, event, COUNT(*) AS count "
+                "FROM audit_log WHERE chat_id = ? AND created_at >= ? GROUP BY day, event ORDER BY day",
+                (chat_id, since),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def audit_totals(self, chat_id: int, since: int) -> dict[str, int]:
+        """Total count per event type from the audit log since a unix ts."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT event, COUNT(*) AS count FROM audit_log WHERE chat_id = ? AND created_at >= ? GROUP BY event",
+                (chat_id, since),
+            ).fetchall()
+        return {r["event"]: r["count"] for r in rows}
+
+    def count_audit_events(
+        self,
+        chat_id: Optional[int] = None,
+        event: Optional[str] = None,
+        user_id: Optional[int] = None,
+        since: Optional[int] = None,
+        until: Optional[int] = None,
+    ) -> int:
+        """Total rows matching the same filters as ``list_audit_events`` (for pagination)."""
+        clauses: list[str] = []
+        params: list = []
+        for clause, value in (
+            ("chat_id = ?", chat_id),
+            ("event = ?", event),
+            ("user_id = ?", user_id),
+            ("created_at >= ?", since),
+            ("created_at < ?", until),
+        ):
+            if value is not None:
+                clauses.append(clause)
+                params.append(value)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        with self._lock:
+            row = self._conn.execute(f"SELECT COUNT(*) AS n FROM audit_log {where}", params).fetchone()
+        return row["n"]
+
+    def top_warned(self, chat_id: int, since: int, limit: int = 10) -> list[dict]:
+        """Users with the most warns (including soft-deleted history) since a unix ts."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT user_id, COUNT(*) AS count FROM warns WHERE chat_id = ? AND created_at >= ? GROUP BY user_id ORDER BY count DESC, user_id LIMIT ?",
+                (chat_id, since, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def usernames_map(self, user_ids: list[int]) -> dict[int, str]:
+        """Best-effort user_id -> @username for display (only cached names)."""
+        if not user_ids:
+            return {}
+        placeholders = ",".join("?" for _ in user_ids)
+        with self._lock:
+            rows = self._conn.execute(
+                f"SELECT username, user_id FROM usernames WHERE user_id IN ({placeholders})",
+                list(user_ids),
+            ).fetchall()
+        return {r["user_id"]: r["username"] for r in rows}
+
     # -- username -> id cache --------------------------------------------------
 
     def remember_user(self, user_id: int, username: Optional[str]) -> None:

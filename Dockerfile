@@ -20,4 +20,7 @@ RUN uv sync --frozen --no-dev
 COPY ./entrypoint.sh .
 COPY ./src/ .
 
+# Web admin dashboard (active only when web.enabled / WEB_ENABLED is set).
+EXPOSE 8080
+
 ENTRYPOINT ["/bot/entrypoint.sh"]

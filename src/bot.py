@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Global BOT command."""
 
+import asyncio
 import logging
 
 import sentry_sdk
@@ -8,7 +9,7 @@ from telegram import Update
 from telegram.ext import Application, CallbackQueryHandler, ChatMemberHandler, CommandHandler, MessageHandler, filters
 
 from core.allowlist import resolve_allowlist, restricted_to_allowed_chats
-from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN
+from core.config import SENTRY_DSN, TELEGRAM_BOT_TOKEN, WEB_ENABLED, WEB_HOST, WEB_PORT, WEB_SESSION_SECRET
 from core.retention import start_retention
 from core.storage import get_storage
 from handlers.admin_handlers import ban_user, kick_user, mute_user, unban_user, unmute_user
@@ -35,13 +36,8 @@ async def _post_init(application) -> None:
     start_retention(application)
 
 
-def main() -> None:
-    sentry_sdk.init(SENTRY_DSN, traces_sample_rate=1.0)
-
-    # Open the database and create the schema before any update is handled.
-    storage = get_storage()
-    logger.info("[INFO] Storage ready at %s", storage.path)
-
+def build_application() -> Application:
+    """Assemble the PTB application with every handler registered."""
     # Resolve the configured allowlist (@usernames -> ids) once the bot is ready.
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(_post_init).build()
 
@@ -107,8 +103,48 @@ def main() -> None:
     )
 
     application.add_error_handler(errors_logging)
+    return application
 
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+async def _run_with_web(application: Application) -> None:
+    """Run polling and the dashboard web server on one event loop.
+
+    Manual PTB lifecycle (the documented pattern for running next to another
+    asyncio framework): uvicorn owns the signals, so ``server.serve()`` returns
+    on SIGINT/SIGTERM and the bot is stopped cleanly afterwards. The web app
+    gets the live Application so routes can reach the Bot API and storage.
+    """
+    import uvicorn
+
+    from web.app import create_app
+
+    server = uvicorn.Server(uvicorn.Config(create_app(application), host=WEB_HOST, port=WEB_PORT, log_level="info"))
+    async with application:  # initialize() / shutdown()
+        # post_init is only called by run_polling, so mirror it here.
+        if application.post_init:
+            await application.post_init(application)
+        await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+        await application.start()
+        logger.info("[INFO] Web dashboard listening on %s:%s", WEB_HOST, WEB_PORT)
+        await server.serve()
+        await application.updater.stop()
+        await application.stop()
+
+
+def main() -> None:
+    sentry_sdk.init(SENTRY_DSN, traces_sample_rate=1.0)
+
+    # Open the database and create the schema before any update is handled.
+    storage = get_storage()
+    logger.info("[INFO] Storage ready at %s", storage.path)
+
+    application = build_application()
+    if WEB_ENABLED:
+        if not WEB_SESSION_SECRET:
+            raise SystemExit("WEB_SESSION_SECRET is required when web.enabled is true")
+        asyncio.run(_run_with_web(application))
+    else:
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

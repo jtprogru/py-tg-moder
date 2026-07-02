@@ -45,6 +45,19 @@ moderation:
     block_video_note: true
     block_location: true
 
+# Web admin dashboard (analytics over the moderation data). Auth is via the
+# Telegram Login Widget: only users from admin_ids below may log in. The
+# widget requires a public HTTPS domain bound to the bot via @BotFather
+# (/setdomain); set public_url to that origin.
+web:
+  enabled: false     # env WEB_ENABLED wins
+  host: '0.0.0.0'    # env WEB_HOST wins
+  port: 8080         # env WEB_PORT wins
+  public_url: ''     # env WEB_PUBLIC_URL wins
+
+# Telegram user ids allowed to open the web dashboard.
+admin_ids: []
+
 storage:
   # SQLite database file for moderation state. Overridden by the DB_PATH env var.
   # Point this at a mounted volume so state survives restarts.

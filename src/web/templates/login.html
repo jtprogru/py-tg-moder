@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Вход — py-tg-moder</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="login-wrap">
+    <section class="card login-card">
+      <h1>Панель модерации</h1>
+      <p class="text-secondary">Вход через Telegram — доступ только для администраторов из <code>admin_ids</code>.</p>
+      {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
+      {% if bot_username %}
+        <script async src="https://telegram.org/widget-login.js"
+                data-telegram-login="{{ bot_username }}"
+                data-size="large"
+                data-auth-url="{{ public_url }}/auth/telegram"
+                data-request-access=""></script>
+      {% else %}
+        <p class="text-secondary">Виджет входа недоступен: бот ещё не запущен или не задан <code>web.public_url</code>.</p>
+      {% endif %}
+      {% if debug %}
+        <p class="dev-login text-secondary">DEBUG: <a href="/auth/dev?user_id=0">dev-вход</a> (подставь свой user_id в URL)</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

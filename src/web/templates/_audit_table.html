@@ -1,0 +1,37 @@
+<section class="card">
+  <p class="text-secondary">Всего записей: {{ total }}</p>
+  <table>
+    <thead>
+      <tr><th>Когда (UTC)</th><th>Событие</th><th>Кого</th><th>Кто</th><th>Причина</th><th>Детали</th></tr>
+    </thead>
+    <tbody>
+      {% for e in events %}
+      <tr>
+        <td class="num">{{ e.created_at | ts }}</td>
+        <td><span class="event-badge">{{ event_labels.get(e.event, e.event) }}</span></td>
+        <td>{% if e.user_id %}{{ names.get(e.user_id, e.user_id) }}{% else %}—{% endif %}</td>
+        <td>{% if e.actor_id %}{{ names.get(e.actor_id, e.actor_id) }}{% else %}<span class="text-secondary">бот</span>{% endif %}</td>
+        <td>{{ e.reason or "—" }}</td>
+        <td class="meta-cell">{% if e.meta %}{{ e.meta | tojson }}{% else %}—{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-secondary">Записей не найдено.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if pages > 1 %}
+  <nav class="pager" aria-label="Страницы">
+    {% set query = "&event=" ~ filter_event if filter_event else "" %}
+    {% set query = query ~ ("&user_id=" ~ filter_user_id if filter_user_id is not none else "") %}
+    {% if page > 1 %}
+      <a hx-get="/chats/{{ chat_id }}/audit?page={{ page - 1 }}{{ query }}" hx-target="#audit-table" hx-push-url="true"
+         href="/chats/{{ chat_id }}/audit?page={{ page - 1 }}{{ query }}">← Новее</a>
+    {% endif %}
+    <span class="text-secondary">стр. {{ page }} из {{ pages }}</span>
+    {% if page < pages %}
+      <a hx-get="/chats/{{ chat_id }}/audit?page={{ page + 1 }}{{ query }}" hx-target="#audit-table" hx-push-url="true"
+         href="/chats/{{ chat_id }}/audit?page={{ page + 1 }}{{ query }}">Старее →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</section>

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Обзор — py-tg-moder{% endblock %}
+{% block content %}
+<h1>Чаты</h1>
+{% if not chats %}
+  <section class="card"><p class="text-secondary">Данных пока нет — бот ещё не видел ни одного чата.</p></section>
+{% endif %}
+<div class="chat-grid">
+  {% for chat in chats %}
+  <a class="card chat-card" href="/chats/{{ chat.id }}">
+    <h2>{{ chat.title }}</h2>
+    <div class="tile-row">
+      <div class="tile">
+        <span class="tile-value">{{ chat.members }}</span>
+        <span class="tile-label">участников</span>
+      </div>
+      <div class="tile">
+        <span class="tile-value">{{ chat.messages_7d }}</span>
+        <span class="tile-label">сообщений за 7 дней</span>
+      </div>
+      <div class="tile">
+        <span class="tile-value">{{ chat.actions_7d }}</span>
+        <span class="tile-label">действий модерации за 7 дней</span>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

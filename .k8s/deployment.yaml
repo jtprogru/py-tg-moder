@@ -38,6 +38,28 @@ spec:
                 key: tg_token
           - name: DB_PATH
             value: /data/moder.db
+          - name: WEB_ENABLED
+            value: "true"
+          - name: WEB_SESSION_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: py-tg-moder-secret
+                key: web_session_secret
+        ports:
+          - name: http
+            containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 30
         volumeMounts:
           - name: data
             mountPath: /data
@@ -47,3 +69,15 @@ spec:
             claimName: py-tg-moder-data
       imagePullSecrets:
       - name: ghcrio-auth-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: py-tg-moder
+spec:
+  selector:
+    app: py-tg-moder
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

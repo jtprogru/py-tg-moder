@@ -1,0 +1,120 @@
+/* Palette roles (light), dark values swap below. */
+body {
+  --page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --series-1: #2a78d6; /* blue: messages, joins, single-hue bars */
+  --series-2: #1baf7a; /* aqua: leaves */
+  --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  body {
+    --page: #0d0d0d;
+    --surface-1: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series-1: #3987e5;
+    --series-2: #199e70;
+    --accent: #3987e5;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 22px; margin: 0 0 16px; }
+h2 { font-size: 15px; margin: 0 0 12px; color: var(--text-secondary); font-weight: 600; }
+h2 + h2, table + h2 { margin-top: 24px; }
+code { color: var(--text-secondary); }
+.text-secondary { color: var(--text-secondary); }
+
+.topbar { background: var(--surface-1); border-bottom: 1px solid var(--border); }
+.topbar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 20px; display: flex; gap: 16px; align-items: center; }
+.topbar-spacer { flex: 1; }
+.brand { font-weight: 700; color: var(--text-primary); }
+.nav-link { color: var(--text-secondary); }
+
+.page { max-width: 1100px; margin: 0 auto; padding: 24px 20px 48px; }
+.page-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.page-head h1 { flex: 1; }
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+/* Period filter: one row above the charts, selection is a filled chip. */
+.period-filter { display: flex; gap: 4px; }
+.period { padding: 4px 12px; border-radius: 999px; color: var(--text-secondary); }
+.period-active { background: var(--accent); color: #fff; }
+.period-active:hover { text-decoration: none; }
+
+/* Stat tiles (KPI row). */
+.tile-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { text-align: left; }
+.tile-value { display: block; font-size: 28px; font-weight: 700; }
+.tile-sub { font-size: 16px; font-weight: 400; color: var(--text-secondary); margin-left: 4px; }
+.tile-label { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.chat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.chat-card { display: block; color: inherit; }
+.chat-card:hover { text-decoration: none; border-color: var(--accent); }
+.chat-card h2 { color: var(--text-primary); }
+.chat-card .tile-row { margin-bottom: 0; }
+
+.chart-box { position: relative; height: 260px; }
+.chart-box-tall { height: 320px; }
+.chart-table { margin-top: 10px; }
+.chart-table summary { color: var(--text-muted); font-size: 12px; cursor: pointer; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; color: var(--text-muted); font-weight: 500; font-size: 12px; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+tbody tr:last-child td { border-bottom: none; }
+
+.event-badge {
+  display: inline-block; padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--border); font-size: 12px; color: var(--text-secondary);
+  white-space: nowrap;
+}
+.meta-cell { font-size: 12px; color: var(--text-muted); max-width: 220px; overflow-wrap: anywhere; }
+
+.filter-row { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
+.filter-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.filter-row select, .filter-row input {
+  background: var(--page); color: var(--text-primary);
+  border: 1px solid var(--baseline); border-radius: 6px; padding: 6px 8px; font: inherit;
+}
+.filter-row button {
+  background: var(--accent); color: #fff; border: none; border-radius: 6px;
+  padding: 7px 16px; font: inherit; cursor: pointer;
+}
+
+.pager { display: flex; gap: 16px; align-items: center; margin-top: 12px; }
+
+.login-wrap { min-height: 100vh; display: grid; place-items: center; background: var(--page); }
+.login-card { max-width: 380px; text-align: center; }
+.login-error { color: #d03b3b; }
+.dev-login { font-size: 12px; }
