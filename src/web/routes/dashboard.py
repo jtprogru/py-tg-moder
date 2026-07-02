@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from core.audit import AuditEvent
 from core.storage import get_storage
-from web.auth import require_admin
+from web.auth import make_csrf, require_admin
 from web.templating import templates
 
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -44,6 +44,7 @@ EVENT_LABELS: dict[str, str] = {
     AuditEvent.MEDIA_DELETED: "удаление медиа",
     AuditEvent.MEMBER_JOINED: "вступление",
     AuditEvent.MEMBER_LEFT: "выход",
+    AuditEvent.COMPACTION_FORCED: "компактинг БД",
 }
 
 # Events that count as "moderation actions" in the headline tile and breakdown
@@ -131,7 +132,7 @@ async def overview(request: Request) -> Response:
 
 
 @router.get("/chats/{chat_id}", response_class=HTMLResponse)
-async def chat_page(request: Request, chat_id: int, days: int = Query(30)) -> Response:
+async def chat_page(request: Request, chat_id: int, days: int = Query(30), admin: int = Depends(require_admin)) -> Response:
     """Per-chat analytics: stat tiles, activity charts and top lists."""
     storage = get_storage()
     days = _clamp_period(days)
@@ -167,6 +168,7 @@ async def chat_page(request: Request, chat_id: int, days: int = Query(30)) -> Re
     context = {
         "chat_id": chat_id,
         "chat_title": await _chat_title(request, chat_id),
+        "csrf": make_csrf(admin),
         "days": days,
         "periods": PERIODS,
         "totals": totals,

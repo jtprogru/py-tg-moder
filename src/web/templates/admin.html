@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Обслуживание — py-tg-moder{% endblock %}
+{% block content %}
+<h1>Обслуживание</h1>
+
+<section class="card">
+  <h2>Хранение истории</h2>
+  <p>Автоматически история хранится <strong>{{ retention_days }} дн</strong>; всё старше удаляется ежедневно в {{ purge_hour }}:00 UTC.
+  {% if db_size_mb is not none %}Текущий размер БД — <strong>{{ db_size_mb }} МБ</strong>.{% endif %}</p>
+</section>
+
+<section class="card">
+  <h2>Принудительный компактинг</h2>
+  <p class="text-secondary">Укажи, сколько последних дней истории оставить — всё старше будет удалено безвозвратно, база сжата. Сначала покажу, что именно удалится.</p>
+  <form class="filter-row" hx-post="/admin/compaction/preview" hx-target="#compaction-result">
+    <label>Оставить дней
+      <input type="number" name="days_to_keep" value="{{ retention_days }}" min="0" required>
+    </label>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit">Посчитать</button>
+  </form>
+  <div id="compaction-result"></div>
+</section>
+{% endblock %}

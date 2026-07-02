@@ -10,6 +10,7 @@ dependencies = [
   "fastapi>=0.115",
   "itsdangerous>=2.2",
   "jinja2>=3.1",
+  "python-multipart>=0.0.20",
   "python-telegram-bot>=22.0",
   "requests>=2.32",
   "ruamel.yaml>=0.18",

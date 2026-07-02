@@ -40,6 +40,7 @@ class AuditEvent(enum.StrEnum):
     MEDIA_DELETED = "media_deleted"
     MEMBER_JOINED = "member_joined"
     MEMBER_LEFT = "member_left"
+    COMPACTION_FORCED = "compaction_forced"
 
 
 async def record_event(

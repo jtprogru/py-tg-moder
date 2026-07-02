@@ -83,3 +83,24 @@ async def require_admin(request: Request) -> int:
     if user_id is None or user_id not in config.ADMIN_IDS:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
     return user_id
+
+
+# -- CSRF ----------------------------------------------------------------------
+# State-changing POSTs carry a token bound to the admin's id, signed with the
+# same secret but a distinct salt so a session cookie can never pass as one.
+
+CSRF_MAX_AGE = 12 * 3600
+
+
+def make_csrf(user_id: int) -> str:
+    return TimestampSigner(config.WEB_SESSION_SECRET, salt="csrf").sign(str(user_id)).decode()
+
+
+def check_csrf(token: Optional[str], user_id: int) -> bool:
+    if not token:
+        return False
+    try:
+        raw = TimestampSigner(config.WEB_SESSION_SECRET, salt="csrf").unsign(token, max_age=CSRF_MAX_AGE)
+    except BadSignature, SignatureExpired:
+        return False
+    return raw.decode() == str(user_id)

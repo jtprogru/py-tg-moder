@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from core import config
+from web.routes.actions import router as actions_router
 from web.routes.auth_routes import router as auth_router
 from web.routes.dashboard import router as dashboard_router
 from web.templating import STATIC_DIR
@@ -34,4 +35,5 @@ def create_app(application=None) -> FastAPI:
 
     app.include_router(auth_router)
     app.include_router(dashboard_router)
+    app.include_router(actions_router)
     return app

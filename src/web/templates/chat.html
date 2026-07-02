@@ -66,6 +66,34 @@
   </details>
 </section>
 
+<section class="card">
+  <h2>Выполнить действие</h2>
+  <form class="filter-row" hx-post="/chats/{{ chat_id }}/actions" hx-target="#action-result">
+    <label>Действие
+      <select name="action">
+        <option value="ban">Забанить</option>
+        <option value="unban">Разбанить</option>
+        <option value="kick">Кикнуть</option>
+        <option value="mute">Замьютить</option>
+        <option value="unmute">Размьютить</option>
+      </select>
+    </label>
+    <label>Кого (id или @username)
+      <input type="text" name="target" placeholder="@spammer" required>
+    </label>
+    <label>Срок (30m / 1h / 1d, пусто — навсегда)
+      <input type="text" name="duration" placeholder="">
+    </label>
+    <label>Причина
+      <input type="text" name="reason" placeholder="спам">
+    </label>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit">Выполнить</button>
+  </form>
+  <div id="action-result"></div>
+  <p class="text-secondary form-hint">Действие уйдёт в Telegram от имени бота и запишется в журнал с твоим id и причиной.</p>
+</section>
+
 <div class="two-col">
   <section class="card">
     <h2>Действия модерации</h2>

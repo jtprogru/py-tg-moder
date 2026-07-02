@@ -1,0 +1,21 @@
+<div class="compaction-preview">
+  {% if total == 0 %}
+    <p class="text-secondary">Истории старше {{ days_to_keep }} дн нет — удалять нечего.</p>
+  {% else %}
+    <p><strong>Будет безвозвратно удалено {{ total }} строк</strong> (история старше {{ days_to_keep }} дн):</p>
+    <table>
+      <thead><tr><th>Таблица</th><th class="num">Строк к удалению</th></tr></thead>
+      <tbody>
+        <tr><td>Журнал действий (audit_log)</td><td class="num">{{ counts.audit_log }}</td></tr>
+        <tr><td>Удалённые варны (warns)</td><td class="num">{{ counts.warns }}</td></tr>
+        <tr><td>Статистика сообщений (message_stats)</td><td class="num">{{ counts.message_stats }}</td></tr>
+      </tbody>
+    </table>
+    <p class="text-secondary">Активные варны, мьюты и участники не затрагиваются. После удаления база будет сжата (VACUUM).</p>
+    <form hx-post="/admin/compaction" hx-target="#compaction-result">
+      <input type="hidden" name="days_to_keep" value="{{ days_to_keep }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit" class="danger">Да, удалить {{ total }} строк</button>
+    </form>
+  {% endif %}
+</div>
